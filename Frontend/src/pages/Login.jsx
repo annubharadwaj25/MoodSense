@@ -13,21 +13,18 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     if (!email || !password) {
       toast.error("Please fill all fields");
       return;
     }
-
     setLoading(true);
     try {
       const response = await api.post("/api/auth/login", { email, password });
-
       login(response.data.token, response.data.user);
-      toast.success("Login successful 🌟");
+      toast.success("Welcome back");
       navigate("/dashboard");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Invalid Email or Password");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
@@ -36,13 +33,12 @@ function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1>Welcome Back</h1>
-        <p>Login to continue your emotion journey.</p>
-
+        <h1>Welcome back</h1>
+        <p>Sign in to continue your journal.</p>
         <form onSubmit={handleLogin}>
           <input
             type="email"
-            placeholder="Email Address"
+            placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -55,12 +51,11 @@ function Login() {
             required
           />
           <button type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        <p style={{ marginTop: "15px" }}>
-          Don't have an account? <Link to="/register">Register here</Link>
+        <p className="footer-link">
+          Don't have an account? <Link to="/register">Get started</Link>
         </p>
       </div>
     </div>

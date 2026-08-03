@@ -3,10 +3,16 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 
 const Journal = require("./models/Journal");
 const User = require("./models/User");
+const Conversation = require("./models/Conversation");
+const detectEmotion = require("./utils/detectEmotion");
+const aiService = require("./services/aiService");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,6 +20,44 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files for profile pictures
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir);
+}
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (extname && mimetype) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
+        }
+    }
+});
 
 // MongoDB Connection
 mongoose
@@ -90,6 +134,24 @@ const validateLogin = (body) => {
     }
 
     return errors;
+};
+
+// Builds the authenticated user's emotion distribution. Older journal records
+// are classified once before aggregation so all dashboard statistics agree.
+const getEmotionDistribution = async (userId) => {
+    const untagged = await Journal.find({ userId, emotion: null }).select({ entry: 1 });
+
+    for (const journal of untagged) {
+        journal.emotion = detectEmotion(journal.entry);
+        await journal.save();
+    }
+
+    return Journal.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+        { $group: { _id: "$emotion", count: { $sum: 1 } } },
+        { $project: { _id: 0, emotion: "$_id", count: 1 } },
+        { $sort: { count: -1 } },
+    ]);
 };
 
 const validateJournal = (body) => {
@@ -206,12 +268,147 @@ app.post("/api/auth/login", async (req, res) => {
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                profilePicture: user.profilePicture,
             },
         });
 
     } catch (err) {
         console.log(err);
 
+        res.status(500).json({
+            message: "Server Error",
+        });
+    }
+});
+
+
+// ================= UPDATE USER PROFILE =================
+
+app.put("/api/user/profile", authMiddleware, async (req, res) => {
+    try {
+        console.log("=== PROFILE UPDATE REQUEST ===");
+        console.log("Request body:", req.body);
+        console.log("User from token:", req.user);
+
+        const { username, email } = req.body;
+        const errors = [];
+
+        // Validate username
+        if (username !== undefined) {
+            if (typeof username !== "string") {
+                errors.push("Username must be a string");
+            } else if (username.trim().length < 3) {
+                errors.push("Username must be at least 3 characters");
+            } else if (username.trim().length > 30) {
+                errors.push("Username must be less than 30 characters");
+            }
+        }
+
+        // Validate email
+        if (email !== undefined) {
+            if (!EMAIL_REGEX.test(email)) {
+                errors.push("A valid email is required");
+            }
+        }
+
+        if (errors.length > 0) {
+            console.log("Validation errors:", errors);
+            return res.status(400).json({
+                message: "Validation failed",
+                errors,
+            });
+        }
+
+        console.log("Finding user by ID:", req.user.id);
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            console.log("User not found");
+            return res.status(404).json({
+                message: "User not found",
+            });
+        }
+
+        console.log("Current user data:", { username: user.username, email: user.email });
+
+        // Check if email is already taken by another user
+        if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+            console.log("Checking if email is already taken:", email);
+            const existingUser = await User.findOne({ email: email.toLowerCase() });
+            if (existingUser) {
+                console.log("Email already taken by another user");
+                return res.status(400).json({
+                    message: "Email already in use",
+                });
+            }
+        }
+
+        // Update fields
+        if (username) user.username = username.trim();
+        if (email) user.email = email.toLowerCase().trim();
+
+        console.log("Saving updated user...");
+        await user.save();
+        console.log("User saved successfully:", { username: user.username, email: user.email, profilePicture: user.profilePicture });
+
+        res.json({
+            message: "Profile updated successfully",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                profilePicture: user.profilePicture,
+            },
+        });
+    } catch (err) {
+        console.error("Profile update error:", err);
+        res.status(500).json({
+            message: "Server Error",
+            error: err.message,
+        });
+    }
+});
+
+// ================= UPLOAD PROFILE PICTURE =================
+
+app.post("/api/user/profile-picture", authMiddleware, upload.single('profilePicture'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                message: "No file uploaded",
+            });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+            });
+        }
+
+        // Delete old profile picture if exists
+        if (user.profilePicture) {
+            const oldPath = path.join(__dirname, user.profilePicture);
+            if (fs.existsSync(oldPath)) {
+                fs.unlinkSync(oldPath);
+            }
+        }
+
+        // Update user with new profile picture path
+        user.profilePicture = `/uploads/${req.file.filename}`;
+        await user.save();
+
+        res.json({
+            message: "Profile picture updated successfully",
+            profilePicture: user.profilePicture,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                profilePicture: user.profilePicture,
+            },
+        });
+    } catch (err) {
+        console.log(err);
         res.status(500).json({
             message: "Server Error",
         });
@@ -295,6 +492,8 @@ app.put("/api/journal/:id", authMiddleware, async (req, res) => {
             req.params.id,
             {
                 entry: entry.trim(),
+                // Re-run detection so the emotion always reflects current text
+                emotion: detectEmotion(entry.trim()),
             },
             {
                 new: true,
@@ -317,6 +516,58 @@ app.put("/api/journal/:id", authMiddleware, async (req, res) => {
     }
 
 });
+// ================= EMOTION DISTRIBUTION =================
+// Returns the user's emotion counts, aggregated from their journals.
+// Shape: [ { emotion: "Happy", count: 12 }, { emotion: "Sad", count: 5 } ]
+// Lazily backfills any older journals that have no emotion field yet.
+
+app.get("/api/emotions/:userId", authMiddleware, async (req, res) => {
+
+    try {
+
+        const { userId } = req.params;
+
+        // Ownership check: users can only read their own distribution
+        if (userId !== req.user.id) {
+            return res.status(403).json({
+                message: "Not authorized to view these emotions",
+            });
+        }
+
+        const distribution = await getEmotionDistribution(userId);
+
+        res.json(distribution);
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "Server Error",
+        });
+
+    }
+
+});
+
+// ================= DASHBOARD STATISTICS =================
+// Fetches only the aggregate data needed by the authenticated user's dashboard.
+app.get("/api/dashboard", authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [journalCount, emotionDistribution, conversationCount] = await Promise.all([
+            Journal.countDocuments({ userId }),
+            getEmotionDistribution(userId),
+            Conversation.countDocuments({ userId, saved: true }),
+        ]);
+
+        res.json({ journalCount, emotionDistribution, conversationCount });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: "Unable to load dashboard statistics" });
+    }
+});
+
 app.get("/api/journal/:userId", authMiddleware, async (req, res) => {
 
     try {
@@ -416,6 +667,7 @@ app.post("/api/journal", authMiddleware, async (req, res) => {
         const journal = new Journal({
             userId,
             entry: entry.trim(),
+            emotion: detectEmotion(entry.trim()),
         });
 
         await journal.save();
@@ -436,6 +688,170 @@ app.post("/api/journal", authMiddleware, async (req, res) => {
     }
 
 });
+// ================= EMOTION DETECTION =================
+// Analyzes free text with the active AI provider and returns the
+// predicted emotion + confidence score. Used by the Detect Emotion page.
+
+app.post("/api/detect", authMiddleware, async (req, res) => {
+
+    try {
+
+        const { text } = req.body;
+
+        if (!text || typeof text !== "string" || text.trim().length === 0) {
+            return res.status(400).json({
+                message: "Please provide some text to analyze",
+            });
+        }
+
+        if (text.length > 5000) {
+            return res.status(400).json({
+                message: "Text must be less than 5000 characters",
+            });
+        }
+
+        const result = await aiService.detectEmotion(text.trim());
+
+        res.json({
+            emotion: result.emotion,
+            confidence: result.confidence,
+            timestamp: result.timestamp,
+            provider: aiService.getProviderName(),
+        });
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "We couldn't analyze your emotion right now. Please try again.",
+        });
+
+    }
+
+});
+
+
+// ================= MOOD COMPANION CHAT =================
+// Generates a supportive, context-aware reply from the wellness
+// companion AI. The full conversation history is sent so the AI
+// stays context-aware across the session.
+
+app.post("/api/chat", authMiddleware, async (req, res) => {
+
+    try {
+
+        const { messages, emotion, originalText, userName, isGreeting } = req.body;
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({
+                message: "Conversation history is required",
+            });
+        }
+
+        const safeEmotion = typeof emotion === "string" ? emotion : "Neutral";
+        const safeOriginal =
+            typeof originalText === "string" ? originalText.slice(0, 5000) : "";
+        const safeUserName = typeof userName === "string" ? userName : "friend";
+        const safeGreeting = typeof isGreeting === "boolean" ? isGreeting : false;
+
+        const result = await aiService.chat(messages, safeEmotion, safeOriginal, safeUserName, safeGreeting);
+
+        res.json({
+            reply: result.reply,
+            provider: result.provider,
+            intent: result.intent,
+            topic: result.topic,
+        });
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "The companion couldn't respond right now. Please try again.",
+        });
+
+    }
+
+});
+
+
+// ================= SAVE CONVERSATION =================
+// Persists a finished (or in-progress) conversation session so it can
+// be reviewed later from the History page.
+
+app.post("/api/conversations/save", authMiddleware, async (req, res) => {
+
+    try {
+
+        const { emotion, messages } = req.body;
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({
+                message: "Cannot save an empty conversation",
+            });
+        }
+
+        const conversation = new Conversation({
+            userId: req.user.id,
+            emotion: typeof emotion === "string" ? emotion : null,
+            messages: messages.map((m) => ({
+                role: m.role === "ai" ? "ai" : "user",
+                content: String(m.content).slice(0, 5000),
+            })),
+            saved: true,
+        });
+
+        await conversation.save();
+
+        res.status(201).json({
+            message: "Conversation Saved Successfully",
+            conversation,
+        });
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "Server Error",
+        });
+
+    }
+
+});
+
+
+// ================= LIST CONVERSATIONS =================
+// Returns all of the user's saved conversations (newest first).
+// Each includes the detected emotion, message count, and date.
+
+app.get("/api/conversations", authMiddleware, async (req, res) => {
+
+    try {
+
+        const conversations = await Conversation.find({
+            userId: req.user.id,
+            saved: true,
+        })
+            .sort({ createdAt: -1 })
+            .select({ messages: 0 }); // omit the full transcript for the list view
+
+        res.json(conversations);
+
+    } catch (err) {
+
+        console.log(err);
+
+        res.status(500).json({
+            message: "Server Error",
+        });
+
+    }
+
+});
+
 app.get("/api/check", (req, res) => {
     res.json({
         message: "Journal backend file is running"

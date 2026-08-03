@@ -1,3 +1,81 @@
+/* ====================================================================
+   MOODSENSE — GLOBAL STYLES + DESIGN TOKENS
+   Calm Editorial system: cream + sage + terracotta + ink
+   ==================================================================== */
+
+:root {
+  /* ---- Light Theme ---- */
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --surface-soft: #f3eee4;
+  --text: #1f2937;
+  --text-soft: #4b5563;
+  --text-muted: #78716c;
+  --primary: #7c9885;
+  --primary-hover: #5f7a6a;
+  --accent: #c97b5c;
+  --border: #e8e2d5;
+  --input-bg: #ffffff;
+  --input-border: #e8e2d5;
+  --nav-bg: #1f2937;
+  --nav-text: #ffffff;
+  --success: #5f7a6a;
+  --success-bg: #eef2ee;
+  --error: #b8553f;
+  --error-bg: #f7ede7;
+
+  /* ---- Typography ---- */
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* ---- Spacing scale ---- */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+
+  /* ---- Radius ---- */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  /* ---- Shadows (soft, warm) ---- */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+
+  /* ---- Transitions ---- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 0.28s var(--ease);
+}
+
+[data-theme="dark"] {
+  /* ---- Dark Theme (Softer, Calm Palette) ---- */
+  --bg: #181818;
+  --surface: #242424;
+  --surface-soft: #2a2a2a;
+  --text: #f5f5f5;
+  --text-soft: #c2c2c2;
+  --text-muted: #8a8a8a;
+  --primary: #7c9885;
+  --primary-hover: #8aa794;
+  --accent: #c97b5c;
+  --border: rgba(255, 255, 255, 0.08);
+  --input-bg: #2a2a2a;
+  --input-border: rgba(255, 255, 255, 0.12);
+  --nav-bg: #1f2937;
+  --nav-text: #f5f5f5;
+  --success: #7c9885;
+  --success-bg: rgba(124, 152, 133, 0.15);
+  --error: #c97b5c;
+  --error-bg: rgba(201, 123, 92, 0.15);
+}
+
+/* ---------------- RESET ---------------- */
+
 * {
   margin: 0;
   padding: 0;
@@ -9,11 +87,21 @@ html {
 }
 
 body {
-  font-family: "Poppins", Arial, Helvetica, sans-serif;
-  background: #f4f6ff;
-  color: #333;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+/* Headings use the serif font by default */
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 a {
@@ -24,6 +112,8 @@ a {
 button {
   cursor: pointer;
   font-family: inherit;
+  border: none;
+  background: none;
 }
 
 input,
@@ -31,20 +121,105 @@ textarea {
   font-family: inherit;
 }
 
-/* Custom scrollbar */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ---------------- CUSTOM SCROLLBAR ---------------- */
+
 ::-webkit-scrollbar {
   width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--cream-deep);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c7c4f5;
+  background: var(--stone);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6C63FF;
+  background: var(--sage);
+}
+
+/* ---------------- SELECTION ---------------- */
+
+::selection {
+  background: var(--primary);
+  color: var(--surface);
+}
+
+/* ---------------- NAVBAR ---------------- */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--nav-bg);
+  color: var(--nav-text);
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+
+/* ---------------- NAVBAR USER AVATAR ---------------- */
+
+.nav-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  border: 2px solid var(--border);
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nav-user-avatar:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 152, 133, 0.25);
+}
+
+.nav-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* ---------------- THEME TOGGLE BUTTON ---------------- */
+
+.theme-toggle-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 152, 133, 0.35);
+}
+
+.theme-toggle-btn:active {
+  transform: translateY(0);
 }

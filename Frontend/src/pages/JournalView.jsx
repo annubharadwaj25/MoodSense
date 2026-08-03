@@ -2,164 +2,162 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
 import Spinner from "../components/ui/Spinner";
 import "./JournalView.css";
 
 function JournalView() {
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-    const { id } = useParams();
-    const navigate = useNavigate();
+  const [isEditing, setIsEditing] = useState(false);
+  const [content, setContent] = useState("");
+  const [createdAt, setCreatedAt] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-    const [isEditing, setIsEditing] = useState(false);
-    const [content, setContent] = useState("");
-    const [createdAt, setCreatedAt] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-
-        const fetchJournal = async () => {
-
-            try {
-                const response = await api.get(`/api/journal/view/${id}`);
-                setContent(response.data.entry);
-                setCreatedAt(response.data.createdAt);
-            } catch {
-                toast.error("Failed to load journal");
-            } finally {
-                setLoading(false);
-            }
-
-        };
-
-        fetchJournal();
-
-    }, [id]);
-
-
-    const saveJournal = async () => {
-
-        try {
-            await api.put(`/api/journal/${id}`, { entry: content });
-            setIsEditing(false);
-            toast.success("Journal Updated Successfully ✨");
-        } catch {
-            toast.error("Update Failed");
-        }
-
+  useEffect(() => {
+    const fetchJournal = async () => {
+      try {
+        const response = await api.get(`/api/journal/view/${id}`);
+        setContent(response.data.entry);
+        setCreatedAt(response.data.createdAt);
+      } catch {
+        toast.error("Failed to load journal");
+      } finally {
+        setLoading(false);
+      }
     };
 
+    fetchJournal();
+  }, [id]);
 
-    const deleteJournal = async () => {
-        if (!window.confirm("Delete this journal entry?")) return;
-
-        try {
-            await api.delete(`/api/journal/${id}`);
-            toast.success("Journal Deleted");
-            navigate("/journal");
-        } catch {
-            toast.error("Failed to delete journal");
-        }
-    };
-
-
-    if (loading) {
-        return (
-            <div className="journal-view-page">
-                <Spinner />
-            </div>
-        );
+  const saveJournal = async () => {
+    if (content.trim() === "") {
+      toast.error("Journal entry cannot be empty 😊");
+      return;
     }
 
+    setSaving(true);
+    try {
+      await api.put(`/api/journal/${id}`, { entry: content.trim() });
+      setIsEditing(false);
+      toast.success("Journal updated successfully ✨");
+    } catch {
+      toast.error("Update failed");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    return (
+  const deleteJournal = async () => {
+    if (!window.confirm("Delete this journal entry?")) return;
 
-        <div className="journal-view-page">
+    try {
+      await api.delete(`/api/journal/${id}`);
+      toast.success("Journal deleted");
+      navigate("/journal");
+    } catch {
+      toast.error("Failed to delete journal");
+    }
+  };
 
-            <div className="journal-container">
+  const formattedDate = createdAt
+    ? new Date(createdAt).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
 
-                <div className="journal-top">
+  return (
+    <>
+      <Navbar />
+      <main className="journal-view-page">
+        <div className="journal-view-container">
+          <nav className="journal-view-nav">
+            <button
+              type="button"
+              className="journal-back-btn"
+              onClick={() => navigate("/journal")}
+            >
+              ← Back to Journal
+            </button>
+          </nav>
 
-                    <button
-                        className="back-btn"
-                        onClick={() => navigate("/journal")}
-                    >
-                        ← Back
-                    </button>
-
-                    <h1>📔 My Journal</h1>
-
-                    <p className="journal-date">
-                        {createdAt ? new Date(createdAt).toDateString() : ""}
-                    </p>
-
-                    <p>
-                        Write, reflect and understand your emotions ✨
-                    </p>
-
-                </div>
-
-
-                <div className="journal-editor">
-
-                    {
-                        isEditing ? (
-
-                            <textarea
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                            />
-
-                        ) : (
-
-                            <div className="journal-content">
-                                {content}
-                            </div>
-
-                        )
-                    }
-
-
-                    <div className="journal-actions">
-
-                        <button
-                            onClick={deleteJournal}
-                            className="delete-btn"
-                        >
-                            🗑️ Delete
-                        </button>
-
-                        {
-                            isEditing ? (
-
-                                <button
-                                    onClick={saveJournal}
-                                    className="save-btn"
-                                >
-                                    💾 Save
-                                </button>
-
-                            ) : (
-
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="edit-btn"
-                                >
-                                    ✏️ Edit
-                                </button>
-
-                            )
-                        }
-
-                    </div>
-
-                </div>
-
+          {loading ? (
+            <div className="journal-view-loading">
+              <Spinner size={32} />
+              <span>Loading journal entry...</span>
             </div>
+          ) : (
+            <article className="journal-view-card">
+              <header className="journal-view-header">
+                <span className="journal-view-eyebrow">Journal Entry</span>
+                <h1 className="journal-view-title">📔 Personal Reflection</h1>
+                {formattedDate && (
+                  <time className="journal-view-date">{formattedDate}</time>
+                )}
+              </header>
 
+              <div className="journal-view-body">
+                {isEditing ? (
+                  <textarea
+                    className="journal-view-textarea"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Write your thoughts..."
+                    disabled={saving}
+                  />
+                ) : (
+                  <div className="journal-view-content">{content}</div>
+                )}
+              </div>
+
+              <footer className="journal-view-actions">
+                <button
+                  type="button"
+                  onClick={deleteJournal}
+                  className="journal-btn-delete"
+                >
+                  🗑️ Delete Entry
+                </button>
+
+                {isEditing ? (
+                  <button
+                    type="button"
+                    onClick={saveJournal}
+                    className="journal-btn-save"
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Spinner size={16} color="var(--white)" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>💾 Save Changes</span>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="journal-btn-edit"
+                  >
+                    ✏️ Edit Entry
+                  </button>
+                )}
+              </footer>
+            </article>
+          )}
         </div>
-
-    );
-
+      </main>
+      <Footer />
+    </>
+  );
 }
 
 export default JournalView;

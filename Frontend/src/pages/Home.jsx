@@ -14,34 +14,32 @@ function Home() {
 
       <Hero />
 
-      {/* Features */}
+      {/* Features — Bento Grid */}
       <section className="features">
-
-        <div className="features-heading">
-          <h2>Why Choose MoodSense?</h2>
-
-          <p>
-            Everything you need to understand, track and improve
-            your emotional well-being.
+        <div className="section">
+          <span className="section-eyebrow">Why MoodSense</span>
+          <h2 className="section-heading">
+            Everything you need to <em>understand</em> yourself
+          </h2>
+          <p className="section-subtitle">
+            Notice, name, and nurture your emotional wellbeing — all in one calm place.
           </p>
-        </div>
 
-        <div className="cards-section">
-          <EmotionCard />
-          <JournalCard />
-          <SuggestionCard />
+          <div className="cards-section">
+            <EmotionCard />
+            <JournalCard />
+            <SuggestionCard />
+          </div>
         </div>
-
       </section>
 
-      {/* New Section */}
       <HowItWorks />
 
-      {/* New Section */}
       <Stats />
 
       <Footer />
     </>
   );
 }
+
 export default Home;

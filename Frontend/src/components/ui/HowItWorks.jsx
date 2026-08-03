@@ -1,59 +1,53 @@
+import Icon from "./Icon";
+
 function HowItWorks() {
     return (
         <section className="how-it-works">
 
-            <div className="section-header">
-                <h2>How MoodSense Works</h2>
-
-                <p>
-                    Just four simple steps to understand and improve your emotional well-being.
+            <div className="section">
+                <span className="section-eyebrow">How it works</span>
+                <h2 className="section-heading">
+                    Four quiet steps to <em>understand</em> yourself
+                </h2>
+                <p className="section-subtitle">
+                    A simple, guided process to notice, name, and nurture your emotions.
                 </p>
-            </div>
 
-            <div className="steps">
+                <div className="steps">
 
-                {/* Step 1 */}
-                <div className="step-card">
-                    <div className="step-icon">😊</div>
+                    <div className="step-card">
+                        <div className="step-icon">
+                            <Icon name="spark" size={28} />
+                        </div>
+                        <h3>Detect</h3>
+                        <p>Share how you're feeling — in your own words.</p>
+                    </div>
 
-                    <h3>Detect</h3>
+                    <div className="step-card">
+                        <div className="step-icon">
+                            <Icon name="brain" size={28} />
+                        </div>
+                        <h3>Analyze</h3>
+                        <p>Our AI gently understands your emotional state.</p>
+                    </div>
 
-                    <p>Analyze your facial expression or mood.</p>
+                    <div className="step-card">
+                        <div className="step-icon">
+                            <Icon name="lightbulb" size={28} />
+                        </div>
+                        <h3>Suggest</h3>
+                        <p>Receive thoughtful, personalized wellness tips.</p>
+                    </div>
+
+                    <div className="step-card">
+                        <div className="step-icon">
+                            <Icon name="chart" size={28} />
+                        </div>
+                        <h3>Track</h3>
+                        <p>Watch your emotional patterns unfold over time.</p>
+                    </div>
+
                 </div>
-
-                <div className="step-arrow">→</div>
-
-                {/* Step 2 */}
-                <div className="step-card">
-                    <div className="step-icon">🧠</div>
-
-                    <h3>Analyze</h3>
-
-                    <p>AI understands your emotional state.</p>
-                </div>
-
-                <div className="step-arrow">→</div>
-
-                {/* Step 3 */}
-                <div className="step-card">
-                    <div className="step-icon">💡</div>
-
-                    <h3>Suggest</h3>
-
-                    <p>Receive personalized wellness tips.</p>
-                </div>
-
-                <div className="step-arrow">→</div>
-
-                {/* Step 4 */}
-                <div className="step-card">
-                    <div className="step-icon">📊</div>
-
-                    <h3>Track</h3>
-
-                    <p>Monitor your mood and progress over time.</p>
-                </div>
-
             </div>
 
         </section>

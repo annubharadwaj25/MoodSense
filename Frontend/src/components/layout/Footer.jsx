@@ -1,7 +1,7 @@
 function Footer() {
     return (
         <footer className="footer">
-            <p>© 2026 MoodSense | AI Emotion Detection System</p>
+            <p>MoodSense · A quiet space to notice how you feel</p>
         </footer>
     );
 }

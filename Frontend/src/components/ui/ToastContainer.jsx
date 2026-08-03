@@ -1,7 +1,5 @@
 import { Toaster } from "react-hot-toast";
 
-// Place once in App.jsx — provides toast notifications globally.
-// Usage anywhere: import toast from "react-hot-toast"; toast.success("msg");
 function ToastContainer() {
     return (
         <Toaster
@@ -9,20 +7,24 @@ function ToastContainer() {
             toastOptions={{
                 duration: 3000,
                 style: {
-                    background: "#333",
-                    color: "#fff",
-                    fontSize: "15px",
-                    borderRadius: "12px",
-                    padding: "14px 20px",
+                    background: "var(--ink)",
+                    color: "var(--cream)",
+                    fontSize: "14px",
+                    borderRadius: "10px",
+                    padding: "12px 18px",
+                    fontFamily: "var(--font-sans)",
+                    fontWeight: "400",
                 },
                 success: {
                     style: {
-                        background: "#22c55e",
+                        background: "var(--success)",
+                        color: "var(--white)",
                     },
                 },
                 error: {
                     style: {
-                        background: "#ef4444",
+                        background: "var(--error)",
+                        color: "var(--white)",
                     },
                 },
             }}

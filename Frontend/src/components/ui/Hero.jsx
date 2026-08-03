@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import Icon from "./Icon";
 
 function Hero() {
     const navigate = useNavigate();
@@ -9,35 +10,30 @@ function Hero() {
             <div className="hero-left">
 
                 <span className="hero-badge">
-                    🧠 AI Powered Mental Wellness
+                    <Icon name="brain" size={15} />
+                    AI-powered mental wellness
                 </span>
 
                 <h1>
-                    Understand Your
-                    <span> Emotions </span>
-                    with AI
+                    Notice how you <em>feel</em>,<br />one entry at a time.
                 </h1>
 
                 <p>
-                    Detect your emotions, write daily journals,
-                    receive smart AI suggestions, and track your
-                    emotional wellness journey—all in one place.
+                    A quiet space to detect your emotions, write daily journals,
+                    and receive thoughtful suggestions for your wellbeing —
+                    all in one calm place.
                 </p>
 
                 <div className="hero-buttons">
 
-                    <button
-                        className="hero-btn"
-                        onClick={() => navigate("/detect")}
-                    >
-                        🧠 Detect Emotion
+                    <button className="hero-btn" onClick={() => navigate("/detect")}>
+                        <Icon name="brain" size={18} />
+                        Detect emotion
                     </button>
 
-                    <button
-                        className="hero-btn-outline"
-                        onClick={() => navigate("/journal")}
-                    >
-                        📔 Write Journal
+                    <button className="hero-btn" onClick={() => navigate("/journal")}>
+                        <Icon name="journal" size={18} />
+                        Write journal
                     </button>
 
                 </div>
@@ -46,20 +42,26 @@ function Hero() {
 
             <div className="hero-right">
 
-                <div className="hero-circle">
-                    😊
-                </div>
+                <div className="hero-orb">
+                    <div className="hero-orb-inner">
+                        <span className="mood-value">72°</span>
+                        <span className="mood-label">Calm today</span>
+                    </div>
 
-                <div className="floating-card card1">
-                    💜 AI Analysis
-                </div>
+                    <div className="floating-card card1">
+                        <Icon name="spark" size={20} />
+                        Mood Insights
+                    </div>
 
-                <div className="floating-card card2">
-                    📔 Daily Journal
-                </div>
+                    <div className="floating-card card2">
+                        <Icon name="journal" size={20} />
+                        Daily Journal
+                    </div>
 
-                <div className="floating-card card3">
-                    💡 Smart Tips
+                    <div className="floating-card card3">
+                        <Icon name="lightbulb" size={20} />
+                        Smart Tips
+                    </div>
                 </div>
 
             </div>
