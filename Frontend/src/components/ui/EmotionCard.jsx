@@ -11,11 +11,11 @@ function EmotionCard() {
                 <Icon name="brain" size={32} />
             </div>
 
-            <h3>Emotion Detection</h3>
+            <h3>Mood Reflection</h3>
 
             <p>
-                Detect your emotions instantly using our AI-powered
-                emotion recognition system.
+                Reflect on your emotions using our AI-powered
+                emotional understanding system.
             </p>
 
             <button className="explore-btn">

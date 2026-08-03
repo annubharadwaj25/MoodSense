@@ -4,7 +4,7 @@ function DetectSuggestionCard({ suggestion }) {
   return (
     <div className="detect-suggestion-card detect-fade-in">
       <span className="detect-suggestion-eyebrow">
-        🌿 Personalized Suggestion
+        🌿 Personalized Guidance
       </span>
       <h3 className="detect-suggestion-title">
         <span className="detect-suggestion-title-emoji" aria-hidden="true">

@@ -19,8 +19,8 @@ function Hero() {
                 </h1>
 
                 <p>
-                    A quiet space to detect your emotions, write daily journals,
-                    and receive thoughtful suggestions for your wellbeing —
+                    A quiet space to reflect on your emotions, write daily journals,
+                    and receive thoughtful guidance for your wellbeing —
                     all in one calm place.
                 </p>
 
@@ -28,7 +28,7 @@ function Hero() {
 
                     <button className="hero-btn" onClick={() => navigate("/detect")}>
                         <Icon name="brain" size={18} />
-                        Detect emotion
+                        Mood Reflection
                     </button>
 
                     <button className="hero-btn" onClick={() => navigate("/journal")}>

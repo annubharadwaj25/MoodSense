@@ -1232,6 +1232,32 @@
   }
 }
 
+/* ---------------- NAV DETECT TEXT RESPONSIVE ---------------- */
+
+.nav-detect-text {
+  display: inline;
+}
+
+@media (max-width: 768px) {
+  .nav-detect-text {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-links a[href="/detect"] {
+    position: relative;
+  }
+  
+  .nav-links a[href="/detect"]::after {
+    content: "Reflection";
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: inline;
+  }
+}
+
 /* ---------------- SPINNER ---------------- */
 
 .spinner-wrapper {

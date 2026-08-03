@@ -19,7 +19,7 @@ function HowItWorks() {
                         <div className="step-icon">
                             <Icon name="spark" size={28} />
                         </div>
-                        <h3>Detect</h3>
+                        <h3>Reflect</h3>
                         <p>Share how you're feeling — in your own words.</p>
                     </div>
 
@@ -27,7 +27,7 @@ function HowItWorks() {
                         <div className="step-icon">
                             <Icon name="brain" size={28} />
                         </div>
-                        <h3>Analyze</h3>
+                        <h3>Understand</h3>
                         <p>Our AI gently understands your emotional state.</p>
                     </div>
 
@@ -35,8 +35,8 @@ function HowItWorks() {
                         <div className="step-icon">
                             <Icon name="lightbulb" size={28} />
                         </div>
-                        <h3>Suggest</h3>
-                        <p>Receive thoughtful, personalized wellness tips.</p>
+                        <h3>Guide</h3>
+                        <p>Receive thoughtful, personalized wellness guidance.</p>
                     </div>
 
                     <div className="step-card">

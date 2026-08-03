@@ -114,10 +114,9 @@ function DetectEmotion() {
       <main className="detect-page">
         <div className="detect-container">
           <header className="detect-header">
-            <h1>🧠 Detect Your Emotion</h1>
+            <h1>Mood Reflection</h1>
             <p>
-              Write your thoughts and our AI will gently analyze how you&apos;re
-              feeling.
+              Take a moment to reflect on how you're feeling. Share your thoughts, and MoodSense will help you understand your emotions while offering thoughtful guidance and personalized suggestions.
             </p>
           </header>
 
@@ -144,10 +143,10 @@ function DetectEmotion() {
                 {loading ? (
                   <>
                     <Spinner size={18} color="var(--cream)" />
-                    <span>Analyzing your emotions...</span>
+                    <span>Reflecting on your thoughts...</span>
                   </>
                 ) : (
-                  <span>✨ Analyze Mood</span>
+                  <span>✨ Reflect on My Mood</span>
                 )}
               </button>
             </div>

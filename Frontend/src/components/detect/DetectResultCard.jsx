@@ -6,7 +6,7 @@ function DetectResultCard({ emotion, confidence, timestamp }) {
   return (
     <div className="detect-result-card detect-fade-in">
       <span className="detect-result-eyebrow">
-        {meta.emoji} Emotion Detected
+        {meta.emoji} Reflection Summary
       </span>
 
       <div className="detect-result-main">
@@ -35,7 +35,7 @@ function DetectResultCard({ emotion, confidence, timestamp }) {
           />
         </div>
         <p className="detect-result-timestamp">
-          ✅ Detected Successfully ·{" "}
+          ✅ Reflection Complete ·{" "}
           {new Date(timestamp).toLocaleString(undefined, {
             dateStyle: "medium",
             timeStyle: "short",

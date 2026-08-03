@@ -11,10 +11,10 @@ function SuggestionCard() {
                 <Icon name="lightbulb" size={32} />
             </div>
 
-            <h3>Smart Suggestions</h3>
+            <h3>Personalized Guidance</h3>
 
             <p>
-                Receive personalized AI-powered wellness tips
+                Receive thoughtful AI-powered wellness guidance
                 based on your emotional state.
             </p>
 
