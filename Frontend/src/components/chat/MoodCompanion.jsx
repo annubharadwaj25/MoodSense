@@ -23,6 +23,8 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   const [isTyping, setIsTyping] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [initError, setInitError] = useState(false);
+
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -30,43 +32,36 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   const name = userName || "friend";
 
   // ---- Kick off the conversation with a personalized greeting ----
-  useEffect(() => {
-    let cancelled = false;
+  const openConversation = async () => {
+    setIsTyping(true);
+    setInitError(false);
+    try {
+      const res = await api.post("/api/chat", {
+        messages: [
+          {
+            role: "user",
+            content: originalText || "Hi, I'd like to talk about how I'm feeling.",
+          },
+        ],
+        emotion,
+        userName: name,
+        isGreeting: true,
+      });
 
-    async function open() {
-      setIsTyping(true);
-      try {
-        const res = await api.post("/api/chat", {
-          messages: [
-            {
-              role: "user",
-              content: originalText || "Hi, I'd like to talk about how I'm feeling.",
-            },
-          ],
-          emotion,
-          userName: name,
-          isGreeting: true,
-        });
-
-        if (cancelled) return;
-
-        setMessages([
-          { role: "user", content: originalText },
-          { role: "ai", content: res.data.reply },
-        ]);
-      } catch {
-        if (!cancelled) {
-          toast.error("The companion couldn't start the conversation.");
-        }
-      } finally {
-        if (!cancelled) setIsTyping(false);
-      }
+      setMessages([
+        { role: "user", content: originalText },
+        { role: "ai", content: res.data.reply },
+      ]);
+    } catch {
+      setInitError(true);
+      toast.error("The companion couldn't start the conversation.");
+    } finally {
+      setIsTyping(false);
     }
+  };
 
-    open();
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    openConversation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -144,6 +139,23 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
 
       <div className="companion-window">
         <div className="companion-messages" ref={scrollRef}>
+          {initError && messages.length === 0 && (
+            <div className="companion-error-fallback" style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", padding: "2rem", textAlign: "center",
+              color: "var(--text-secondary, #8a8580)", gap: "1rem", height: "100%"
+            }}>
+              <p>😔 The companion couldn't connect right now.</p>
+              <button
+                type="button"
+                className="detect-btn"
+                onClick={openConversation}
+                style={{ fontSize: "0.9rem", padding: "0.5rem 1.5rem" }}
+              >
+                🔄 Try Again
+              </button>
+            </div>
+          )}
           {messages.map((m, i) => (
             <ChatBubble key={i} role={m.role} content={m.content} />
           ))}

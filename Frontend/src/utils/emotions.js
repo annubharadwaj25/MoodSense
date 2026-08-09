@@ -9,14 +9,14 @@
 
 export const EMOTIONS = {
   Happy:    { emoji: "😊", color: "#7c9885" }, // green
-  Sad:      { emoji: "�", color: "#6b8cae" }, // blue
-  Angry:    { emoji: "😠", color: "#c47b6a" }, // red
-  Fear:     { emoji: "�", color: "#a89bc4" }, // purple
-  Calm:     { emoji: "�", color: "#5f9ea0" }, // teal
-  Neutral:  { emoji: "�", color: "#b3a89f" }, // grey
+  Sad:      { emoji: "😔", color: "#6b8cae" }, // blue
+  Angry:    { emoji: "😡", color: "#c47b6a" }, // red
+  Fear:     { emoji: "😨", color: "#a89bc4" }, // purple
+  Calm:     { emoji: "😌", color: "#5f9ea0" }, // teal
+  Neutral:  { emoji: "😐", color: "#b3a89f" }, // grey
   Excited:  { emoji: "🤩", color: "#e0b86a" }, // warm yellow
-  Anxious:  { emoji: "�", color: "#d99a73" }, // light orange
-  Stressed: { emoji: "�", color: "#9b8cb5" }, // lavender
+  Anxious:  { emoji: "😟", color: "#d99a73" }, // light orange
+  Stressed: { emoji: "😣", color: "#9b8cb5" }, // lavender
 };
 
 // Emotions considered "positive" for the trend line in the summary card.

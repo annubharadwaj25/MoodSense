@@ -2,13 +2,14 @@
  * aiService.js — Provider-agnostic AI service
  * ----------------------------------------------------------------
  * Factory that picks the AI provider based on the AI_PROVIDER
- * environment variable. Ships with two providers:
+ * environment variable. Ships with four providers:
  *
+ *   "gemini"   → uses the Google Gemini API
  *   "openai"   → uses the OpenAI Chat Completions API
  *   "ml"       → local zero-shot ML model (default, no API key)
  *   "keyword"  → legacy keyword scorer (explicit opt-in only)
  *
- * To add a new provider (Gemini, Claude, etc.):
+ * To add a new provider (Claude, etc.):
  *   1. Create a new file in services/providers/ that exports
  *      async detect(text) and async chat(messages, emotion).
  *   2. Add the provider name to this file's PROVIDERS map.
@@ -30,8 +31,20 @@ function getOpenAI() {
     return _openaiProvider;
 }
 
+// Lazy-load the Gemini provider only when it's actually selected,
+// so the app starts without error even if GEMINI_API_KEY is missing.
+let _geminiProvider = null;
+
+function getGemini() {
+    if (!_geminiProvider) {
+        _geminiProvider = require("./providers/gemini");
+    }
+    return _geminiProvider;
+}
+
 // ---- Provider registry ----
 const PROVIDERS = {
+    gemini: () => getGemini(),
     openai: () => getOpenAI(),
     ml: () => mlProvider,
     keyword: () => keywordProvider,

@@ -59,11 +59,22 @@ const upload = multer({
     }
 });
 
-// MongoDB Connection
+// MongoDB Connection - wait for connection before starting server
 mongoose
     .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/moodsense")
-    .then(() => console.log("✅ MongoDB Connected"))
-    .catch((err) => console.log(err));
+    .then(() => {
+        console.log("✅ MongoDB Connected");
+        
+        // Only start listening after MongoDB is connected
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Server Running on Port ${PORT}`);
+            console.log(`🌐 Server accessible at http://localhost:${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.log("❌ MongoDB Connection Error:", err);
+        process.exit(1);
+    });
 
 
 // ================= AUTH MIDDLEWARE =================
@@ -555,13 +566,90 @@ app.get("/api/emotions/:userId", authMiddleware, async (req, res) => {
 app.get("/api/dashboard", authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
-        const [journalCount, emotionDistribution, conversationCount] = await Promise.all([
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const sevenDaysAgo = new Date(todayStart);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const [journalCount, emotionDistribution, conversationCount, latestJournal, weeklyJournals] = await Promise.all([
             Journal.countDocuments({ userId }),
             getEmotionDistribution(userId),
             Conversation.countDocuments({ userId, saved: true }),
+            Journal.findOne({ userId }).sort({ createdAt: -1 }),
+            Journal.find({
+                userId,
+                createdAt: { $gte: sevenDaysAgo }
+            }).sort({ createdAt: 1 })
         ]);
 
-        res.json({ journalCount, emotionDistribution, conversationCount });
+        // Calculate reflection streak
+        let streak = 0;
+        const allJournals = await Journal.find({ userId }).sort({ createdAt: -1 });
+        if (allJournals.length > 0) {
+            const checkDate = new Date(todayStart);
+            streak = 0;
+            
+            for (let i = 0; i < 365; i++) { // Check up to a year back
+                const hasJournal = allJournals.some(j => {
+                    const journalDate = new Date(j.createdAt);
+                    return journalDate.toDateString() === checkDate.toDateString();
+                });
+                
+                if (hasJournal) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else if (i === 0) {
+                    // If no journal today, check yesterday
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Calculate weekly mood trend
+        const weeklyTrend = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(todayStart);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            const dayJournals = weeklyJournals.filter(j => {
+                const journalDate = new Date(j.createdAt);
+                return journalDate.toDateString() === date.toDateString();
+            });
+            
+            if (dayJournals.length > 0) {
+                // Get the most common emotion for this day
+                const emotionCounts = {};
+                dayJournals.forEach(j => {
+                    if (j.emotion) {
+                        emotionCounts[j.emotion] = (emotionCounts[j.emotion] || 0) + 1;
+                    }
+                });
+                const dominantEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Neutral';
+                weeklyTrend.push({ date: dateStr, emotion: dominantEmotion });
+            } else {
+                weeklyTrend.push({ date: dateStr, emotion: null });
+            }
+        }
+
+        // Check if there's a reflection today
+        const todayJournal = await Journal.findOne({
+            userId,
+            createdAt: { $gte: todayStart }
+        });
+
+        res.json({
+            journalCount,
+            emotionDistribution,
+            conversationCount,
+            latestJournal,
+            streak,
+            weeklyTrend,
+            hasTodayReflection: !!todayJournal,
+            todayMood: todayJournal?.emotion || null
+        });
     } catch (err) {
         console.log(err);
         res.status(500).json({ message: "Unable to load dashboard statistics" });
@@ -766,10 +854,14 @@ app.post("/api/chat", authMiddleware, async (req, res) => {
 
     } catch (err) {
 
-        console.log(err);
+        console.error("❌ /api/chat error:", err.message || err);
+        if (err.status) console.error("   Status:", err.status, err.statusText);
 
-        res.status(500).json({
-            message: "The companion couldn't respond right now. Please try again.",
+        const status = err.status === 429 ? 429 : 500;
+        res.status(status).json({
+            message: err.status === 429
+                ? "The AI is receiving too many requests. Please wait a moment and try again."
+                : "The companion couldn't respond right now. Please try again.",
         });
 
     }
@@ -858,7 +950,14 @@ app.get("/api/check", (req, res) => {
     });
 });
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    console.error('❌ Unhandled Promise Rejection:', err);
+    process.exit(1);
+});
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server Running on Port ${PORT}`);
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+    process.exit(1);
 });
