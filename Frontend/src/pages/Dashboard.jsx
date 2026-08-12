@@ -208,7 +208,7 @@ function Dashboard() {
         <div className="dashboard-quick-actions">
           <button className="quick-action-btn" onClick={() => navigate("/detect")}>
             <span className="quick-action-icon">🧠</span>
-            <span>Mood Reflection</span>
+            <span>Reflect</span>
           </button>
           <button className="quick-action-btn" onClick={() => navigate("/journal")}>
             <span className="quick-action-icon">📔</span>

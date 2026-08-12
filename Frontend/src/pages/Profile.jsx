@@ -24,13 +24,13 @@ function Profile() {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+
   
   // Dashboard stats
   const [stats, setStats] = useState({
     journalCount: 0,
     emotionCount: 0,
-    memberSince: "",
+    memberSince: new Date().getFullYear(),
     emotionDistribution: [],
   });
   
@@ -40,14 +40,13 @@ function Profile() {
 
   useEffect(() => {
     if (user) {
-      setStats(prev => ({ ...prev, memberSince: new Date().getFullYear() }));
       fetchDashboardStats();
       fetchEmotionHistory();
       fetchConversations();
     }
   }, [user]);
 
-  const fetchDashboardStats = async () => {
+  async function fetchDashboardStats() {
     try {
       const response = await api.get("/api/dashboard");
       setStats(prev => ({
@@ -61,7 +60,7 @@ function Profile() {
     }
   };
 
-  const fetchEmotionHistory = async () => {
+  async function fetchEmotionHistory() {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user || !user.id) return;
@@ -73,7 +72,7 @@ function Profile() {
     }
   };
 
-  const fetchConversations = async () => {
+  async function fetchConversations() {
     try {
       const response = await api.get("/api/conversations");
       setConversations(response.data.slice(0, 5));
@@ -174,7 +173,7 @@ function Profile() {
               <h3>Recent Detected Emotions</h3>
               <div className="emotion-timeline">
                 {emotionHistory.length > 0 ? (
-                  emotionHistory.map((journal, index) => (
+                  emotionHistory.map((journal) => (
                     <div key={journal._id} className="timeline-row">
                       <div className="timeline-card">
                         <div className="timeline-date">

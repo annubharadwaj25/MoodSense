@@ -11,7 +11,7 @@ function EmotionCard() {
                 <Icon name="brain" size={32} />
             </div>
 
-            <h3>Mood Reflection</h3>
+            <h3>Reflect</h3>
 
             <p>
                 Reflect on your emotions using our AI-powered

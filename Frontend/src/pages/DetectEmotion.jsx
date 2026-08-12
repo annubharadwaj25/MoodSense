@@ -114,7 +114,7 @@ function DetectEmotion() {
       <main className="detect-page">
         <div className="detect-container">
           <header className="detect-header">
-            <h1>Mood Reflection</h1>
+            <h1>Reflect</h1>
             <p>
               Take a moment to reflect on how you're feeling. Share your thoughts, and MoodSense will help you understand your emotions while offering thoughtful guidance and personalized suggestions.
             </p>

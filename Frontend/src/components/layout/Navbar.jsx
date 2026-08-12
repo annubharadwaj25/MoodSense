@@ -101,7 +101,7 @@ function Navbar() {
                 {isAuthenticated ? (
                     <>
                         <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""} onClick={closeMenu}>Dashboard</Link>
-                        <Link to="/detect" className={isActive("/detect") ? "active" : ""} onClick={closeMenu}><span className="nav-detect-text">Mood Reflection</span></Link>
+                        <Link to="/detect" className={isActive("/detect") ? "active" : ""} onClick={closeMenu}><span className="nav-detect-text">Reflect</span></Link>
                         <Link to="/journal" className={isActive("/journal") ? "active" : ""} onClick={closeMenu}>Journal</Link>
                         <Link to="/profile" className={isActive("/profile") ? "active" : ""} onClick={closeMenu}>Profile</Link>
                         <div className="nav-user-avatar">
@@ -124,9 +124,9 @@ function Navbar() {
                     </>
                 ) : (
                     <>
-                        <Link to="/login" className={isActive("/login") ? "active" : ""} onClick={closeMenu}>Sign in</Link>
+                        <Link to="/login" className={isActive("/login") ? "active" : ""} onClick={closeMenu}>Login</Link>
                         <Link to="/register" onClick={closeMenu}>
-                            <button className="get-started-btn">Get started</button>
+                            <button className="get-started-btn">Get Started</button>
                         </Link>
                     </>
                 )}

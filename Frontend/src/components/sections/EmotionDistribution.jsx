@@ -1,7 +1,9 @@
+import { useState } from "react";
 import Spinner from "../ui/Spinner";
 import EmotionPieChart from "../ui/EmotionPieChart";
 import EmotionSummary from "../ui/EmotionSummary";
 import EmotionEmptyState from "../ui/EmotionEmptyState";
+import SelectedEmotionCard from "../ui/SelectedEmotionCard";
 
 /* ----------------------------------------------------------------
    EmotionDistribution
@@ -16,6 +18,13 @@ import EmotionEmptyState from "../ui/EmotionEmptyState";
 ---------------------------------------------------------------- */
 
 export default function EmotionDistribution({ data = [], loading = false }) {
+  const [selectedEmotion, setSelectedEmotion] = useState(null);
+
+  const handleEmotionSelect = (emotionData) => {
+    setSelectedEmotion(emotionData);
+  };
+
+  const total = (data || []).reduce((s, d) => s + (d.count || 0), 0);
 
   return (
     <section className="emotion-distribution">
@@ -35,7 +44,14 @@ export default function EmotionDistribution({ data = [], loading = false }) {
       ) : (
         <div className="emotion-distribution-grid">
           <div className="emotion-distribution-chart-card">
-            <EmotionPieChart data={data} />
+            <div className="emotion-distribution-content">
+              <div className="emotion-chart-wrapper">
+                <EmotionPieChart data={data} onEmotionSelect={handleEmotionSelect} />
+              </div>
+              {selectedEmotion && (
+                <SelectedEmotionCard selectedEmotion={selectedEmotion} total={total} />
+              )}
+            </div>
           </div>
           <EmotionSummary data={data} />
         </div>

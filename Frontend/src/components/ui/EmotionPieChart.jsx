@@ -4,7 +4,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip,
 } from "recharts";
 import { buildChartData } from "../../utils/emotions";
 
@@ -14,30 +13,10 @@ import { buildChartData } from "../../utils/emotions";
    - Rounded slices (cornerRadius) + small gap (paddingAngle)
    - Smooth load animation (easeOut)
    - Hover enlarges the active slice outward
-   - Custom tooltip:  emoji + Name / Percentage% / N Entries
+   - Click updates selected emotion in side panel
    - Custom legend:   emoji dot + label + count (always visible)
    Pure component — driven entirely by the `data` prop.
 ---------------------------------------------------------------- */
-
-// ---- Custom hover tooltip ----
-function EmotionTooltip({ active, payload }) {
-  if (!active || !payload || !payload.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="emotion-tooltip">
-      <div className="emotion-tooltip-head">
-        <span className="emotion-tooltip-emoji">{d.emoji}</span>
-        <span className="emotion-tooltip-name">{d.emotion}</span>
-      </div>
-      <div className="emotion-tooltip-row">
-        <strong>{d.percent}%</strong>
-      </div>
-      <div className="emotion-tooltip-row muted">
-        {d.count} {d.count === 1 ? "Entry" : "Entries"}
-      </div>
-    </div>
-  );
-}
 
 // ---- Active (hovered) slice: same shape, slightly larger radius ----
 function renderActiveSlice(props) {
@@ -90,16 +69,24 @@ function renderActiveSlice(props) {
   );
 }
 
-export default function EmotionPieChart({ data }) {
+export default function EmotionPieChart({ data, onEmotionSelect }) {
   const [activeIndex, setActiveIndex] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
   const { rows } = buildChartData(data);
 
   if (!rows || rows.length === 0) return null;
 
+  const handleSliceClick = (index) => {
+    setSelectedIndex(index);
+    if (onEmotionSelect && rows[index]) {
+      onEmotionSelect(rows[index]);
+    }
+  };
+
   return (
     <div className="emotion-pie-wrap">
       <div className="emotion-pie">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width={300} height={300}>
           <PieChart>
             <Pie
               data={rows}
@@ -120,6 +107,7 @@ export default function EmotionPieChart({ data }) {
               activeShape={renderActiveSlice}
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
+              onClick={handleSliceClick}
             >
               {rows.map((row) => (
                 <Cell
@@ -130,10 +118,6 @@ export default function EmotionPieChart({ data }) {
                 />
               ))}
             </Pie>
-            <Tooltip
-              content={<EmotionTooltip />}
-              wrapperStyle={{ outline: "none" }}
-            />
           </PieChart>
         </ResponsiveContainer>
 
@@ -152,12 +136,15 @@ export default function EmotionPieChart({ data }) {
           <li
             key={row.emotion}
             className={`emotion-legend-item${
-              activeIndex !== null && activeIndex === rows.indexOf(row)
+              (activeIndex !== null && activeIndex === rows.indexOf(row)) ||
+              (selectedIndex !== null && selectedIndex === rows.indexOf(row))
                 ? " is-active"
                 : ""
             }`}
             onMouseEnter={() => setActiveIndex(rows.indexOf(row))}
             onMouseLeave={() => setActiveIndex(null)}
+            onClick={() => handleSliceClick(rows.indexOf(row))}
+            style={{ cursor: 'pointer' }}
           >
             <span
               className="emotion-legend-dot"

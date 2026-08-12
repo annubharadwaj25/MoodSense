@@ -28,7 +28,7 @@ function Hero() {
 
                     <button className="hero-btn" onClick={() => navigate("/detect")}>
                         <Icon name="brain" size={18} />
-                        Mood Reflection
+                        Reflect
                     </button>
 
                     <button className="hero-btn" onClick={() => navigate("/journal")}>
