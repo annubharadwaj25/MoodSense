@@ -21,6 +21,12 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
+function GuestRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+
+  return isAuthenticated ? <Navigate to="/dashboard" /> : children;
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -32,8 +38,8 @@ function App() {
 
           {/* Public Pages */}
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
           {/* Private Pages */}
           <Route

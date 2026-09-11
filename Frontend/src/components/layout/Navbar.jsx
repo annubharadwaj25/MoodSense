@@ -1,7 +1,8 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../../context/useAuth";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../context/useTheme";
+import { getApiAssetUrl } from "../../services/api";
 
 function Navbar() {
     const navigate = useNavigate();
@@ -101,12 +102,12 @@ function Navbar() {
                 {isAuthenticated ? (
                     <>
                         <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""} onClick={closeMenu}>Dashboard</Link>
-                        <Link to="/detect" className={isActive("/detect") ? "active" : ""} onClick={closeMenu}><span className="nav-detect-text">Reflect</span></Link>
+                        <Link to="/detect" className={isActive("/detect") ? "active" : ""} onClick={closeMenu}>Reflection</Link>
                         <Link to="/journal" className={isActive("/journal") ? "active" : ""} onClick={closeMenu}>Journal</Link>
                         <Link to="/profile" className={isActive("/profile") ? "active" : ""} onClick={closeMenu}>Profile</Link>
                         <div className="nav-user-avatar">
                             {user?.profilePicture ? (
-                                <img src={`http://localhost:5000${user.profilePicture}`} alt="Profile" />
+                                <img src={getApiAssetUrl(user.profilePicture)} alt="Profile" />
                             ) : (
                                 getInitials(user?.username)
                             )}

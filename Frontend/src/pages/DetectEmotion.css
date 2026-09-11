@@ -142,6 +142,31 @@
   align-items: center;
 }
 
+.detect-process-slot {
+  width: 100%;
+}
+
+.detect-process-slot:empty {
+  display: none;
+}
+
+.detect-retry-btn {
+  margin-top: var(--space-sm);
+  padding: 8px 20px;
+  border: 1px solid rgba(184, 85, 63, 0.35);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--error);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.detect-retry-btn:hover {
+  background: var(--surface-soft);
+}
+
 /* ---- Results area ---- */
 
 .detect-results {

@@ -32,20 +32,7 @@ function generateReply({ messages = [], emotion = "Neutral", userName = "friend"
     // Fresh manager per call — no cross-conversation state leakage
     const manager = new ConversationManager();
 
-    console.log("\n========== [COMPANION ENGINE DEBUG] ==========");
-    console.log("[CE] generateReply called");
-    console.log("[CE] messages count:", messages.length);
-    console.log("[CE] emotion:", emotion);
-    console.log("[CE] userName:", userName);
-    console.log("[CE] isGreeting:", isGreeting);
-
     const result = manager.processTurn({ messages, emotion, userName, isGreeting });
-
-    console.log("[CE] RESULT intent:", result.intent);
-    console.log("[CE] RESULT topic:", result.topic);
-    console.log("[CE] RESULT dialogueState:", result.dialogueState);
-    console.log("[CE] RESULT reply:", result.reply);
-    console.log("========== [/COMPANION ENGINE DEBUG] ==========\n");
 
     return result;
 }

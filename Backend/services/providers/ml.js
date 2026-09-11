@@ -43,18 +43,31 @@ let classifierPromise = null;
 
 /**
  * Lazy-load the zero-shot classifier once per process.
+ * Subsequent requests reuse the same pipeline — never reload the model.
  */
 function getClassifier() {
     if (!classifierPromise) {
         classifierPromise = (async () => {
+            const start = Date.now();
+            console.log("🧠 Loading local emotion model (Xenova/mobilebert-uncased-mnli)…");
             const { pipeline } = await import("@xenova/transformers");
-            return pipeline(
+            const classifier = await pipeline(
                 "zero-shot-classification",
                 "Xenova/mobilebert-uncased-mnli"
             );
+            console.log(`🧠 Emotion model ready in ${Date.now() - start}ms`);
+            return classifier;
         })();
     }
     return classifierPromise;
+}
+
+/**
+ * Preload the classifier at server boot so the first user request
+ * does not pay model-download / ONNX-init latency.
+ */
+function warmup() {
+    return getClassifier();
 }
 
 /**
@@ -72,7 +85,9 @@ function toConfidence(score) {
  */
 async function detect(text) {
     const classifier = await getClassifier();
+    const inferenceStart = Date.now();
     const output = await classifier(text, LABELS, { multi_label: false });
+    console.log(`[ml] zero-shot inference ${Date.now() - inferenceStart}ms (chars=${text.length})`);
 
     const topLabel = output.labels[0];
     const topScore = output.scores[0];
@@ -111,4 +126,4 @@ async function chat(messages, emotion, originalText, userName, isGreeting) {
     return { ...result, provider: "ml" };
 }
 
-module.exports = { detect, chat };
+module.exports = { detect, chat, warmup };

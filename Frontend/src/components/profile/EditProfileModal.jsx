@@ -53,22 +53,15 @@ function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
 
     setLoading(true);
     try {
-      console.log("Sending profile update:", {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-      });
-
       // Upload profile picture if selected
       if (profilePicture) {
         const formDataUpload = new FormData();
         formDataUpload.append("profilePicture", profilePicture);
         
-        console.log("Uploading profile picture...");
         const uploadResponse = await api.post("/api/user/profile-picture", formDataUpload, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         
-        console.log("Upload response:", uploadResponse.data);
         toast.success(uploadResponse.data.message);
         
         // Update user with new profile picture
@@ -76,19 +69,15 @@ function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
       }
 
       // Update profile information
-      console.log("Updating profile information...");
       const response = await api.put("/api/user/profile", {
         username: formData.username.trim(),
         email: formData.email.trim(),
       });
 
-      console.log("Profile update response:", response.data);
       toast.success(response.data.message);
       onUpdate(response.data.user);
       onClose();
     } catch (err) {
-      console.error("Profile update error:", err);
-      console.error("Error response:", err.response?.data);
       toast.error(err.response?.data?.message || "Failed to update profile");
     } finally {
       setLoading(false);

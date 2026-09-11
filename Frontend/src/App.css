@@ -238,17 +238,26 @@
   letter-spacing: -0.03em;
 }
 
-.hero h1 em {
+.hero-heading-highlight {
+  display: inline-block;
+  overflow: visible;
+  white-space: nowrap;
+  vertical-align: baseline;
   font-style: italic;
   color: var(--accent);
   font-weight: 400;
 }
 
-[data-theme="dark"] .hero h1 em {
+[data-theme="dark"] .hero-heading-highlight {
+  /* Reserve the italic glyph's overhang while keeping the heading's layout unchanged. */
+  padding: 0.1em 0.16em 0.1em 0.04em;
+  margin: -0.1em -0.16em -0.1em -0.04em;
   background: linear-gradient(135deg, var(--primary), var(--accent-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .hero-left p {
@@ -1487,7 +1496,7 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: var(--space-sm);
-  height: 120px;
+  min-height: 135px;
   padding-top: var(--space-md);
 }
 
@@ -1496,13 +1505,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
 }
 
 .trend-bar {
   width: 100%;
   min-height: 20px;
-  max-height: 80px;
+  max-height: 70px;
   border-radius: var(--radius-sm);
   transition: all var(--transition);
 }
@@ -1519,6 +1528,30 @@
 
 .trend-emoji {
   font-size: 1rem;
+  line-height: 1;
+}
+
+.trend-emoji-empty {
+  color: var(--text-muted);
+  opacity: 0.5;
+  font-weight: 400;
+}
+
+.trend-subtext {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.15;
+  white-space: normal;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.trend-subtext-empty {
+  color: var(--text-muted);
+  opacity: 0.7;
+  font-weight: 400;
 }
 
 /* ---------------- FADE IN ANIMATION ---------------- */
@@ -1842,31 +1875,6 @@
   }
 }
 
-/* ---------------- NAV DETECT TEXT RESPONSIVE ---------------- */
-
-.nav-detect-text {
-  display: inline;
-}
-
-@media (max-width: 768px) {
-  .nav-detect-text {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .nav-links a[href="/detect"] {
-    position: relative;
-  }
-  
-  .nav-links a[href="/detect"]::after {
-    content: "Reflection";
-    position: absolute;
-    left: 0;
-    top: 0;
-    display: inline;
-  }
-}
 
 /* ---------------- SPINNER ---------------- */
 
@@ -2038,13 +2046,79 @@
   }
 
   .hero-right {
-    min-height: 360px;
+    min-height: 340px;
     order: -1;
   }
 
   .hero-orb {
     width: 260px;
     height: 260px;
+  }
+
+  .hero-orb-inner {
+    width: 165px;
+    height: 165px;
+  }
+
+  .floating-card {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .card1 {
+    top: 15px;
+    left: -15px;
+  }
+
+  .card2 {
+    bottom: 10px;
+    right: -15px;
+  }
+
+  .card3 {
+    bottom: -20px;
+    left: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-orb {
+    width: 235px;
+    height: 235px;
+  }
+
+  .hero-orb-inner {
+    width: 150px;
+    height: 150px;
+  }
+
+  .hero-orb-inner .mood-value {
+    font-size: 2rem;
+  }
+
+  .hero-orb-inner .mood-label {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  .floating-card {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .card1 {
+    top: 10px;
+    left: -10px;
+  }
+
+  .card2 {
+    bottom: 8px;
+    right: -10px;
+  }
+
+  .card3 {
+    bottom: -22px;
+    left: 5px;
   }
 }
 
@@ -2577,6 +2651,27 @@
 
 /* Mobile: everything stacked, compact pie */
 @media (max-width: 600px) {
+  .dashboard-page {
+    padding: var(--space-lg) var(--space-sm);
+  }
+
+  .weekly-trend-card {
+    padding: var(--space-md) var(--space-sm);
+  }
+
+  .trend-chart {
+    gap: 6px;
+  }
+
+  .trend-label {
+    font-size: 0.7rem;
+  }
+
+  .trend-subtext {
+    font-size: 0.62rem;
+    line-height: 1.1;
+  }
+
   .emotion-chart-wrapper {
     width: 260px;
     flex: 0 0 260px;
@@ -2596,4 +2691,3 @@
     flex: 1 1 auto;
   }
 }
-

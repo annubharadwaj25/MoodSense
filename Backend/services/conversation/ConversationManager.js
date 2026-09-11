@@ -30,20 +30,14 @@ class ConversationManager {
      * @returns {Object} { reply: string, intent: string, topic: string, dialogueState: string }
      */
     processTurn({ messages = [], emotion = "Neutral", userName = "friend", isGreeting = false }) {
-        console.log("\n--- [ConversationManager.processTurn] START ---");
-
         // 1. Extract memory context
         const memoryContext = MemoryManager.getMemoryContext(messages);
         const latestUserMessage = memoryContext.latestUserMessage;
-        console.log("[CM] latestUserMessage:", JSON.stringify(latestUserMessage));
-        console.log("[CM] emotion context:", emotion);
-        console.log("[CM] totalTurns:", memoryContext.totalTurns);
 
         // Special handling for initial greeting with no user message
         if (isGreeting && !latestUserMessage) {
             const greeting = `Hey ${userName}, I'm here with you. What's on your mind today?`;
             console.log("[CM] → GREETING path (no user message yet)");
-            console.log("--- [ConversationManager.processTurn] END ---\n");
             return {
                 reply: greeting,
                 intent: "CASUAL_CHAT",
@@ -54,13 +48,10 @@ class ConversationManager {
 
         // 2. Classify intent
         const intent = IntentClassifier.classify(latestUserMessage);
-        console.log("[CM] DETECTED INTENT:", intent);
 
         // 3. Track topic and topic transitions
         const topic = TopicTracker.detectTopic(latestUserMessage, intent);
         const { hasSwitched, previousTopic } = TopicTracker.analyzeTopicTransition(topic, messages);
-        console.log("[CM] DETECTED TOPIC:", topic);
-        console.log("[CM] TOPIC SWITCHED:", hasSwitched, "| previousTopic:", previousTopic);
 
         // 4. Update Dialogue State
         const dialogueState = DialogueStateManager.updateState({
@@ -69,7 +60,6 @@ class ConversationManager {
             hasSwitchedTopic: hasSwitched,
             turnCount: memoryContext.totalTurns,
         });
-        console.log("[CM] DIALOGUE STATE:", dialogueState);
 
         // 5. Formulate Response Plan
         const plan = ResponsePlanner.createPlan({
@@ -81,13 +71,9 @@ class ConversationManager {
             hasSwitchedTopic: hasSwitched,
             previousTopic,
         });
-        console.log("[CM] RESPONSE PLAN strategy:", plan.strategy, "| tone:", plan.tone);
 
         // 6. Generate Response
         const reply = ResponseGenerator.generate(plan, this.phraseHistoryManager);
-        console.log("[CM] FINAL REPLY:", JSON.stringify(reply));
-        console.log("--- [ConversationManager.processTurn] END ---\n");
-
         return {
             reply,
             intent,

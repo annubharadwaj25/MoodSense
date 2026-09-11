@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
 import ChatBubble from "./ChatBubble";
@@ -32,7 +32,7 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   const name = userName || "friend";
 
   // ---- Kick off the conversation with a personalized greeting ----
-  const openConversation = async () => {
+  const openConversation = useCallback(async () => {
     setIsTyping(true);
     setInitError(false);
     try {
@@ -58,12 +58,12 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [emotion, name, originalText]);
 
   useEffect(() => {
-    openConversation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const startConversation = setTimeout(openConversation, 0);
+    return () => clearTimeout(startConversation);
+  }, [openConversation]);
 
   // ---- Auto-scroll to the latest message ----
   useEffect(() => {

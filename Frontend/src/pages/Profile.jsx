@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import api from "../services/api";
-import toast from "react-hot-toast";
+import api, { getApiAssetUrl } from "../services/api";
 import EditProfileModal from "../components/profile/EditProfileModal";
 import "./Profile.css";
 
@@ -25,7 +24,7 @@ function Profile() {
   const { user, setUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  
+
   // Dashboard stats
   const [stats, setStats] = useState({
     journalCount: 0,
@@ -33,53 +32,57 @@ function Profile() {
     memberSince: new Date().getFullYear(),
     emotionDistribution: [],
   });
-  
+
   // Emotion history data
   const [emotionHistory, setEmotionHistory] = useState([]);
   const [conversations, setConversations] = useState([]);
 
   useEffect(() => {
-    if (user) {
-      fetchDashboardStats();
-      fetchEmotionHistory();
-      fetchConversations();
-    }
-  }, [user]);
+    if (!user?.id) return undefined;
 
-  async function fetchDashboardStats() {
-    try {
-      const response = await api.get("/api/dashboard");
-      setStats(prev => ({
-        ...prev,
-        journalCount: response.data.journalCount,
-        emotionCount: response.data.emotionDistribution.reduce((sum, item) => sum + item.count, 0),
-        emotionDistribution: response.data.emotionDistribution,
-      }));
-    } catch (err) {
-      console.error("Failed to fetch dashboard stats:", err);
-    }
-  };
+    let cancelled = false;
 
-  async function fetchEmotionHistory() {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user || !user.id) return;
-      const response = await api.get(`/api/journal/${user.id}`);
-      const journalsWithEmotion = response.data.filter(j => j.emotion);
-      setEmotionHistory(journalsWithEmotion.slice(0, 10));
-    } catch (err) {
-      console.error("Failed to fetch emotion history:", err);
-    }
-  };
+    const loadProfileData = async () => {
+      const [dashboardResult, journalResult, conversationResult] = await Promise.allSettled([
+        api.get("/api/dashboard"),
+        api.get(`/api/journal/${user.id}`),
+        api.get("/api/conversations"),
+      ]);
 
-  async function fetchConversations() {
-    try {
-      const response = await api.get("/api/conversations");
-      setConversations(response.data.slice(0, 5));
-    } catch (err) {
-      console.error("Failed to fetch conversations:", err);
-    }
-  };
+      if (cancelled) return;
+      console.log("DASHBOARD RESPONSE:", dashboardResult);
+      console.log("DASHBOARD DATA:", dashboardResult.value?.data);
+
+      console.log("JOURNAL RESPONSE:", journalResult);
+      console.log("JOURNAL DATA:", journalResult.value?.data);
+
+      if (dashboardResult.status === "fulfilled") {
+        const dashboard = dashboardResult.value.data;
+        const emotionDistribution = Array.isArray(dashboard.emotionDistribution) ? dashboard.emotionDistribution : [];
+        setStats((previous) => ({
+          ...previous,
+          journalCount: dashboard.journalCount || 0,
+          emotionCount: emotionDistribution.reduce((sum, item) => sum + (item.count || 0), 0),
+          emotionDistribution,
+        }));
+      }
+
+      if (journalResult.status === "fulfilled") {
+        const journals = Array.isArray(journalResult.value.data) ? journalResult.value.data : [];
+        setEmotionHistory(journals.filter((journal) => journal.emotion).slice(0, 10));
+      }
+
+      if (conversationResult.status === "fulfilled") {
+        const conversations = Array.isArray(conversationResult.value.data) ? conversationResult.value.data : [];
+        setConversations(conversations.slice(0, 5));
+      }
+    };
+
+    loadProfileData();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const handleProfileUpdate = (updatedUser) => {
     setUser(updatedUser);
@@ -100,13 +103,13 @@ function Profile() {
       <Navbar />
       <div className="profile-page">
         <div className="profile-container">
-          
+
           {/* Profile Card */}
           <div className="profile-card">
             <div className="profile-header">
               <div className="profile-avatar-large">
                 {user?.profilePicture ? (
-                  <img src={`http://localhost:5000${user.profilePicture}`} alt="Profilepicture" />
+                  <img src={getApiAssetUrl(user.profilePicture)} alt="Profilepicture" />
                 ) : (
                   getInitials(user?.username)
                 )}
@@ -167,7 +170,7 @@ function Profile() {
           {/* Emotion History Section */}
           <div className="profile-history">
             <h2 className="profile-section-title">Emotion History</h2>
-            
+
             {/* Recent Emotions */}
             <div className="history-section">
               <h3>Recent Detected Emotions</h3>
@@ -186,7 +189,7 @@ function Profile() {
                           {EMOJI_MAP[journal.emotion] || "✨"} {journal.emotion}
                         </div>
                       </div>
-                      <button 
+                      <button
                         className="timeline-view-btn"
                         onClick={() => navigate(`/journal/${journal._id}`)}
                         aria-label="View journal"
@@ -212,7 +215,7 @@ function Profile() {
                         {EMOJI_MAP[item.emotion] || "✨"} {item.emotion}
                       </div>
                       <div className="emotion-bar-fill">
-                        <div 
+                        <div
                           className="emotion-bar-progress"
                           style={{ width: `${(item.count / stats.emotionCount) * 100}%` }}
                         />

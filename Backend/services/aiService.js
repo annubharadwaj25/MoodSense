@@ -107,4 +107,15 @@ function getProviderName() {
     return ACTIVE_KEY;
 }
 
-module.exports = { detectEmotion, chat, getProviderName };
+/**
+ * Preload provider resources (e.g. local ML weights) without changing
+ * detection behavior. Safe no-op when the active provider has no warmup.
+ */
+function warmup() {
+    if (typeof activeProvider.warmup === "function") {
+        return activeProvider.warmup();
+    }
+    return Promise.resolve();
+}
+
+module.exports = { detectEmotion, chat, getProviderName, warmup };

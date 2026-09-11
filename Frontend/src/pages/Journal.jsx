@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import Spinner from "../components/ui/Spinner";
+import ProcessingStatus, { waitForPaint } from "../components/ui/ProcessingStatus";
 import "./Journal.css";
 
 const EMOJI_MAP = {
@@ -21,12 +22,16 @@ const EMOJI_MAP = {
 
 function Journal() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const reflectionResult = location.state?.reflectionResult || null;
   const [entry, setEntry] = useState(
     () => localStorage.getItem("journalPrefill") || ""
   );
   const [journals, setJournals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const successTimerRef = useRef(null);
 
   useEffect(() => {
     // Consume prefill before first render
@@ -37,7 +42,8 @@ function Journal() {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user || !user.id) return;
         const response = await api.get(`/api/journal/${user.id}`);
-        setJournals(response.data);
+        const journals = Array.isArray(response.data) ? response.data : [];
+        setJournals(journals);
       } catch {
         toast.error("Failed to load journals");
       } finally {
@@ -46,6 +52,10 @@ function Journal() {
     };
 
     fetchJournals();
+
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
   }, []);
 
   const saveJournal = async () => {
@@ -54,6 +64,8 @@ function Journal() {
       return;
     }
 
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSaveSuccess(false);
     setSaving(true);
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -62,9 +74,11 @@ function Journal() {
         entry: entry.trim(),
       });
 
-      toast.success(response.data.message || "Journal saved ✨");
-      setJournals([response.data.journal, ...journals]);
+      setJournals((prev) => [response.data.journal, ...prev]);
       setEntry("");
+      setSaveSuccess(true);
+      await waitForPaint();
+      successTimerRef.current = setTimeout(() => setSaveSuccess(false), 2200);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save journal");
     } finally {
@@ -91,6 +105,15 @@ function Journal() {
       <main className="journal-page">
         <div className="journal-container">
           <header className="journal-header">
+            {reflectionResult && (
+              <button
+                type="button"
+                className="journal-back-reflection-btn"
+                onClick={() => navigate("/detect", { state: { restoredResult: reflectionResult } })}
+              >
+                ← Back to Reflection
+              </button>
+            )}
             <span className="journal-eyebrow">Personal Reflections</span>
             <h1>📔 Daily Journal</h1>
             <p>
@@ -187,17 +210,29 @@ function Journal() {
                 </div>
               </div>
 
+              <div className="journal-process-slot">
+                {saving && (
+                  <ProcessingStatus
+                    headline="Saving your reflection..."
+                    detail="Understanding the mood behind your words."
+                  />
+                )}
+                {!saving && saveSuccess && (
+                  <ProcessingStatus success headline="Journal saved" />
+                )}
+              </div>
+
               <button
                 type="button"
                 className="journal-save-btn"
                 onClick={saveJournal}
-                disabled={saving || entry.trim().length === 0}
+                disabled={saving || saveSuccess || entry.trim().length === 0}
+                aria-busy={saving}
               >
                 {saving ? (
-                  <>
-                    <Spinner size={18} color="var(--white)" />
-                    <span>Saving...</span>
-                  </>
+                  <span>Saving entry…</span>
+                ) : saveSuccess ? (
+                  <span>Journal saved</span>
                 ) : (
                   <span>💾 Save Entry</span>
                 )}

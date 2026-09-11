@@ -1,9 +1,16 @@
 import axios from "axios";
 
+export const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+export const getApiAssetUrl = (assetPath) => {
+    if (!assetPath) return "";
+    return API_URL ? `${API_URL}${assetPath}` : assetPath;
+};
+
 // Centralized axios instance — automatically attaches JWT token
 // to every request and handles auth errors consistently.
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+    baseURL: API_URL,
 });
 
 // Request interceptor: attach Authorization header

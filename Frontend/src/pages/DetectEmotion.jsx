@@ -1,28 +1,42 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import Spinner from "../components/ui/Spinner";
 import MoodCompanion from "../components/chat/MoodCompanion";
 import DetectResultCard from "../components/detect/DetectResultCard";
 import DetectSuggestionCard from "../components/detect/DetectSuggestionCard";
 import DetectErrorCard from "../components/detect/DetectErrorCard";
+import ProcessingStatus, { waitForPaint } from "../components/ui/ProcessingStatus";
 import api from "../services/api";
 import { getSuggestion } from "../utils/suggestions";
 import "./DetectEmotion.css";
 
 const AUTO_CLEAR_DELAY = 1800;
-const LOADING_DELAY = 2500;
+
+const REFLECT_STEPS = [
+  { id: "reading", label: "Reading your reflection" },
+  { id: "understanding", label: "Understanding your emotion" },
+  { id: "preparing", label: "Preparing your reflection" },
+];
+
+function stepStates(activeIndex) {
+  return REFLECT_STEPS.map((step, index) => ({
+    ...step,
+    state: index < activeIndex ? "done" : index === activeIndex ? "active" : "waiting",
+  }));
+}
 
 function DetectEmotion() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(() => location.state?.restoredResult || null);
   const [error, setError] = useState("");
   const [sessionKey, setSessionKey] = useState(0);
   const [showEncouragement, setShowEncouragement] = useState(false);
+  const [processStep, setProcessStep] = useState(null);
 
   const canAnalyze = text.trim().length > 0 && !loading;
   const suggestion = result ? getSuggestion(result.emotion) : null;
@@ -42,19 +56,23 @@ function DetectEmotion() {
     setLoading(true);
     setError("");
     setResult(null);
+    setProcessStep(0);
 
     try {
+      await waitForPaint();
+      setProcessStep(1);
       const res = await api.post("/api/detect", { text: submittedText });
 
-      // Add artificial delay for smooth loading experience
-      await new Promise(resolve => setTimeout(resolve, LOADING_DELAY));
-
-      setResult({
+      setProcessStep(2);
+      const mapped = {
         emotion: res.data.emotion,
         confidence: res.data.confidence,
         timestamp: res.data.timestamp,
         originalText: submittedText,
-      });
+      };
+      await waitForPaint();
+
+      setResult(mapped);
       setSessionKey((k) => k + 1);
 
       setTimeout(() => setText(""), AUTO_CLEAR_DELAY);
@@ -65,6 +83,7 @@ function DetectEmotion() {
       );
     } finally {
       setLoading(false);
+      setProcessStep(null);
     }
   };
 
@@ -74,6 +93,9 @@ function DetectEmotion() {
     setError("");
     setSessionKey((k) => k + 1);
     setShowEncouragement(false);
+    if (location.state?.restoredResult) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
   };
 
   const handleContinueToJournal = () => {
@@ -87,7 +109,7 @@ function DetectEmotion() {
     
     // Navigate after 1 second
     setTimeout(() => {
-      navigate("/journal");
+      navigate("/journal", { state: { reflectionResult: result } });
     }, 1000);
   };
 
@@ -141,19 +163,22 @@ function DetectEmotion() {
                 aria-busy={loading}
               >
                 {loading ? (
-                  <>
-                    <Spinner size={18} color="var(--cream)" />
-                    <span>Reflecting on your thoughts...</span>
-                  </>
+                  <span>Reflecting on your thoughts…</span>
                 ) : (
                   <span>✨ Reflect on My Mood</span>
                 )}
               </button>
             </div>
+
+            <div className="detect-process-slot">
+              {loading && processStep !== null && (
+                <ProcessingStatus steps={stepStates(processStep)} />
+              )}
+            </div>
           </div>
 
           {error && (
-            <DetectErrorCard message={error} />
+            <DetectErrorCard message={error} onRetry={handleAnalyze} />
           )}
 
           {result && (

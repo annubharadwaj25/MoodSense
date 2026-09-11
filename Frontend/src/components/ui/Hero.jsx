@@ -15,7 +15,7 @@ function Hero() {
                 </span>
 
                 <h1>
-                    Notice how you <em>feel</em>,<br />one entry at a time.
+                    Notice how you <span className="hero-heading-highlight">feel</span>,<br />one entry at a time.
                 </h1>
 
                 <p>

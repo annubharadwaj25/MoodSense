@@ -11,15 +11,71 @@ require("dotenv").config();
 const Journal = require("./models/Journal");
 const User = require("./models/User");
 const Conversation = require("./models/Conversation");
-const detectEmotion = require("./utils/detectEmotion");
 const aiService = require("./services/aiService");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET;
+const frontendOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET must be configured before starting the server.");
+}
+
+if (isProduction && frontendOrigins.length === 0) {
+    throw new Error("FRONTEND_URL must be configured in production.");
+}
+
+const allowedOrigins = isProduction
+    ? frontendOrigins
+    : [...new Set([...frontendOrigins, "http://localhost:5173"])];
+
+const createRateLimiter = ({ windowMs, max, message }) => {
+    const requests = new Map();
+
+    return (req, res, next) => {
+        const now = Date.now();
+        const key = req.ip;
+        const current = requests.get(key);
+        const active = current && current.resetAt > now ? current : { count: 0, resetAt: now + windowMs };
+        active.count += 1;
+        requests.set(key, active);
+
+        if (active.count > max) {
+            res.set("Retry-After", Math.ceil((active.resetAt - now) / 1000));
+            return res.status(429).json({ message });
+        }
+
+        return next();
+    };
+};
+
+const authRateLimit = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: "Too many authentication attempts. Please try again later.",
+});
+const aiRateLimit = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    message: "Too many AI requests. Please wait a moment and try again.",
+});
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.set("trust proxy", 1);
+app.use(cors({
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error("Origin is not allowed by CORS"));
+    },
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+}));
+app.use(express.json({ limit: "100kb" }));
 
 // Serve static files for profile pictures
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -69,6 +125,11 @@ mongoose
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server Running on Port ${PORT}`);
             console.log(`🌐 Server accessible at http://localhost:${PORT}`);
+            // Load the emotion model in the background so Journal/Reflect
+            // requests do not wait on first-time Transformers.js init.
+            aiService.warmup().catch((err) => {
+                console.warn("⚠️  Emotion model warmup failed:", err.message);
+            });
         });
     })
     .catch((err) => {
@@ -91,7 +152,7 @@ const authMiddleware = (req, res, next) => {
     try {
         const verified = jwt.verify(
             token.replace("Bearer ", ""),
-            process.env.JWT_SECRET || "secret123"
+            JWT_SECRET
         );
         req.user = verified;
         next();
@@ -153,16 +214,20 @@ const getEmotionDistribution = async (userId) => {
     const untagged = await Journal.find({ userId, emotion: null }).select({ entry: 1 });
 
     for (const journal of untagged) {
-        journal.emotion = detectEmotion(journal.entry);
+        const result = await aiService.detectEmotion(journal.entry);
+        journal.emotion = result.emotion;
         await journal.save();
     }
 
-    return Journal.aggregate([
+    const distribution = await Journal.aggregate([
         { $match: { userId: new mongoose.Types.ObjectId(userId) } },
         { $group: { _id: "$emotion", count: { $sum: 1 } } },
         { $project: { _id: 0, emotion: "$_id", count: 1 } },
         { $sort: { count: -1 } },
     ]);
+
+    // Always return an array, even if aggregation fails or returns null
+    return Array.isArray(distribution) ? distribution : [];
 };
 
 const validateJournal = (body) => {
@@ -187,7 +252,7 @@ const validateJournal = (body) => {
 
 // ================= REGISTER =================
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
         const errors = validateRegister(req.body);
         if (errors.length > 0) {
@@ -233,7 +298,7 @@ app.post("/api/auth/register", async (req, res) => {
 
 // ================= LOGIN =================
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
         const errors = validateLogin(req.body);
         if (errors.length > 0) {
@@ -267,7 +332,7 @@ app.post("/api/auth/login", async (req, res) => {
             {
                 id: user._id,
             },
-            process.env.JWT_SECRET || "secret123",
+            JWT_SECRET,
             {
                 expiresIn: "1d",
             }
@@ -297,10 +362,6 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.put("/api/user/profile", authMiddleware, async (req, res) => {
     try {
-        console.log("=== PROFILE UPDATE REQUEST ===");
-        console.log("Request body:", req.body);
-        console.log("User from token:", req.user);
-
         const { username, email } = req.body;
         const errors = [];
 
@@ -323,30 +384,23 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
         }
 
         if (errors.length > 0) {
-            console.log("Validation errors:", errors);
             return res.status(400).json({
                 message: "Validation failed",
                 errors,
             });
         }
 
-        console.log("Finding user by ID:", req.user.id);
         const user = await User.findById(req.user.id);
         if (!user) {
-            console.log("User not found");
             return res.status(404).json({
                 message: "User not found",
             });
         }
 
-        console.log("Current user data:", { username: user.username, email: user.email });
-
         // Check if email is already taken by another user
         if (email && email.toLowerCase() !== user.email.toLowerCase()) {
-            console.log("Checking if email is already taken:", email);
             const existingUser = await User.findOne({ email: email.toLowerCase() });
             if (existingUser) {
-                console.log("Email already taken by another user");
                 return res.status(400).json({
                     message: "Email already in use",
                 });
@@ -357,9 +411,7 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
         if (username) user.username = username.trim();
         if (email) user.email = email.toLowerCase().trim();
 
-        console.log("Saving updated user...");
         await user.save();
-        console.log("User saved successfully:", { username: user.username, email: user.email, profilePicture: user.profilePicture });
 
         res.json({
             message: "Profile updated successfully",
@@ -371,10 +423,8 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
             },
         });
     } catch (err) {
-        console.error("Profile update error:", err);
         res.status(500).json({
             message: "Server Error",
-            error: err.message,
         });
     }
 });
@@ -499,12 +549,13 @@ app.put("/api/journal/:id", authMiddleware, async (req, res) => {
             });
         }
 
+        const detectionResult = await aiService.detectEmotion(entry.trim());
         const updatedJournal = await Journal.findByIdAndUpdate(
             req.params.id,
             {
                 entry: entry.trim(),
                 // Re-run detection so the emotion always reflects current text
-                emotion: detectEmotion(entry.trim()),
+                emotion: detectionResult.emotion,
             },
             {
                 new: true,
@@ -675,7 +726,8 @@ app.get("/api/journal/:userId", authMiddleware, async (req, res) => {
             createdAt: -1,
         });
 
-        res.json(journals);
+        // Always return an array, even if find returns null or undefined
+        res.json(Array.isArray(journals) ? journals : []);
 
     } catch (err) {
 
@@ -726,11 +778,6 @@ app.delete("/api/journal/:id", authMiddleware, async (req, res) => {
     }
 
 });
-app.post("/api/test", (req, res) => {
-    console.log("TEST ROUTE HIT");
-    res.json({ message: "Working" });
-});
-
 app.post("/api/journal", authMiddleware, async (req, res) => {
 
     try {
@@ -752,13 +799,20 @@ app.post("/api/journal", authMiddleware, async (req, res) => {
             });
         }
 
+        const trimmedEntry = entry.trim();
+        const detectStarted = Date.now();
+        const detectionResult = await aiService.detectEmotion(trimmedEntry);
+        const detectMs = Date.now() - detectStarted;
+
+        const saveStarted = Date.now();
         const journal = new Journal({
             userId,
-            entry: entry.trim(),
-            emotion: detectEmotion(entry.trim()),
+            entry: trimmedEntry,
+            emotion: detectionResult.emotion,
         });
 
         await journal.save();
+        console.log(`[journal] detect ${detectMs}ms · save ${Date.now() - saveStarted}ms`);
 
         res.status(201).json({
             message: "Journal Saved Successfully",
@@ -780,7 +834,7 @@ app.post("/api/journal", authMiddleware, async (req, res) => {
 // Analyzes free text with the active AI provider and returns the
 // predicted emotion + confidence score. Used by the Detect Emotion page.
 
-app.post("/api/detect", authMiddleware, async (req, res) => {
+app.post("/api/detect", authMiddleware, aiRateLimit, async (req, res) => {
 
     try {
 
@@ -798,7 +852,9 @@ app.post("/api/detect", authMiddleware, async (req, res) => {
             });
         }
 
+        const detectStarted = Date.now();
         const result = await aiService.detectEmotion(text.trim());
+        console.log(`[detect] ${Date.now() - detectStarted}ms`);
 
         res.json({
             emotion: result.emotion,
@@ -825,7 +881,7 @@ app.post("/api/detect", authMiddleware, async (req, res) => {
 // companion AI. The full conversation history is sent so the AI
 // stays context-aware across the session.
 
-app.post("/api/chat", authMiddleware, async (req, res) => {
+app.post("/api/chat", authMiddleware, aiRateLimit, async (req, res) => {
 
     try {
 
@@ -834,6 +890,18 @@ app.post("/api/chat", authMiddleware, async (req, res) => {
         if (!Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({
                 message: "Conversation history is required",
+            });
+        }
+
+        if (messages.length > 20 || messages.some((message) =>
+            !message ||
+            !["user", "ai"].includes(message.role) ||
+            typeof message.content !== "string" ||
+            message.content.trim().length === 0 ||
+            message.content.length > 5000
+        )) {
+            return res.status(400).json({
+                message: "Conversation messages must contain valid text and stay within the supported limits.",
             });
         }
 
@@ -885,6 +953,18 @@ app.post("/api/conversations/save", authMiddleware, async (req, res) => {
             });
         }
 
+        if (messages.length > 100 || messages.some((message) =>
+            !message ||
+            !["user", "ai"].includes(message.role) ||
+            typeof message.content !== "string" ||
+            message.content.trim().length === 0 ||
+            message.content.length > 5000
+        )) {
+            return res.status(400).json({
+                message: "Conversation messages must contain valid text and stay within the supported limits.",
+            });
+        }
+
         const conversation = new Conversation({
             userId: req.user.id,
             emotion: typeof emotion === "string" ? emotion : null,
@@ -930,7 +1010,8 @@ app.get("/api/conversations", authMiddleware, async (req, res) => {
             .sort({ createdAt: -1 })
             .select({ messages: 0 }); // omit the full transcript for the list view
 
-        res.json(conversations);
+        // Always return an array, even if find returns null or undefined
+        res.json(Array.isArray(conversations) ? conversations : []);
 
     } catch (err) {
 
@@ -944,9 +1025,9 @@ app.get("/api/conversations", authMiddleware, async (req, res) => {
 
 });
 
-app.get("/api/check", (req, res) => {
+app.get("/api/health", (req, res) => {
     res.json({
-        message: "Journal backend file is running"
+        status: "ok",
     });
 });
 

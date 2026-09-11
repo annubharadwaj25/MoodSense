@@ -86,7 +86,7 @@ export default function EmotionPieChart({ data, onEmotionSelect }) {
   return (
     <div className="emotion-pie-wrap">
       <div className="emotion-pie">
-        <ResponsiveContainer width={300} height={300}>
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={rows}

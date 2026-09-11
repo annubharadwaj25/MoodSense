@@ -192,10 +192,6 @@ async function chat(messages, emotion, originalText, userName, isGreeting) {
     // a new "user" turn.  So we put all messages EXCEPT the last one
     // into history (they already alternate correctly from the frontend)
     // and send the final user message via sendMessage().
-    console.log("\n========== GEMINI CHAT ==========");
-    console.log("Messages received:", messages.length);
-    console.log("=================================\n");
-
     const lastMessage = messages[messages.length - 1];
     const historyMessages = messages.slice(0, -1).slice(-10);
 

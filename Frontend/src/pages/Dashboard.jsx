@@ -25,7 +25,6 @@ const WELLNESS_QUOTES = [
 ];
 
 const getDailyQuote = () => {
-  const today = new Date().toDateString();
   const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
   return WELLNESS_QUOTES[dayOfYear % WELLNESS_QUOTES.length];
 };
@@ -141,7 +140,6 @@ function Dashboard() {
   const emotionDistribution = stats?.emotionDistribution || [];
   const currentMood = stats?.todayMood || "No mood yet";
   const journalCount = stats?.journalCount ?? 0;
-  const conversationCount = stats?.conversationCount ?? 0;
   const streak = stats?.streak ?? 0;
   const latestJournal = stats?.latestJournal;
   const weeklyTrend = stats?.weeklyTrend || [];
@@ -352,9 +350,12 @@ function Dashboard() {
                     }}
                   />
                   <span className="trend-label">{day.date}</span>
-                  {day.emotion && (
-                    <span className="trend-emoji">{getEmotionEmoji(day.emotion)}</span>
-                  )}
+                  <span className={`trend-emoji ${!day.emotion ? 'trend-emoji-empty' : ''}`}>
+                    {day.emotion ? getEmotionEmoji(day.emotion) : "—"}
+                  </span>
+                  <span className={`trend-subtext ${!day.emotion ? 'trend-subtext-empty' : ''}`}>
+                    {day.emotion ? day.emotion : "No entry"}
+                  </span>
                 </div>
               ))}
             </div>

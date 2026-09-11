@@ -42,6 +42,32 @@
   margin-right: auto;
 }
 
+.journal-back-reflection-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+  padding: 8px 18px;
+  background: var(--surface-soft);
+  color: var(--primary-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.journal-back-reflection-btn:hover {
+  background: var(--surface);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateX(-3px);
+  box-shadow: var(--shadow-md);
+}
+
 .journal-eyebrow {
   display: block;
   font-family: var(--font-sans);
@@ -310,6 +336,19 @@
   font-family: var(--font-sans);
 }
 
+.journal-process-slot {
+  min-height: 0;
+  margin-top: var(--space-sm);
+}
+
+.journal-process-slot:empty {
+  display: none;
+}
+
+.journal-process-slot .ms-process {
+  margin: 0;
+}
+
 /* ---- Save Button ---- */
 
 .journal-save-btn {
@@ -355,6 +394,10 @@
   .journal-layout {
     grid-template-columns: 1fr;
     gap: var(--space-md);
+  }
+
+  .journal-editor {
+    order: -1;
   }
 
   .journal-list {
