@@ -101,6 +101,19 @@ async function chat(messages, emotion, originalText, userName, isGreeting) {
 }
 
 /**
+ * Generate a wellness companion chat response (streaming).
+ * Falls back to non-streaming if the provider doesn't support it.
+ */
+async function* chatStream(messages, emotion, originalText, userName, isGreeting) {
+    if (typeof activeProvider.chatStream === "function") {
+        yield* activeProvider.chatStream(messages, emotion, originalText, userName, isGreeting);
+    } else {
+        const result = await activeProvider.chat(messages, emotion, originalText, userName, isGreeting);
+        yield { provider: result.provider, intent: result.intent, topic: result.topic, text: result.reply };
+    }
+}
+
+/**
  * Get the name of the currently active provider (for frontend display).
  */
 function getProviderName() {
@@ -118,4 +131,4 @@ function warmup() {
     return Promise.resolve();
 }
 
-module.exports = { detectEmotion, chat, getProviderName, warmup };
+module.exports = { detectEmotion, chat, chatStream, getProviderName, warmup };

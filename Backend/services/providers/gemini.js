@@ -216,4 +216,52 @@ async function chat(messages, emotion, originalText, userName, isGreeting) {
     return { reply, provider: "gemini", intent, topic };
 }
 
-module.exports = { detect, chat };
+/**
+ * Generate a streaming wellness companion chat response using Gemini.
+ */
+async function* chatStream(messages, emotion, originalText, userName, isGreeting) {
+    const latestMessage = getLastUserMessage(messages);
+    const intent = detectIntent(latestMessage);
+    const topic = detectTopic(latestMessage);
+    const contextLine = originalText
+        ? `\n\nThe user's original entry that triggered emotion detection was:\n"${originalText.slice(0, 800)}"`
+        : "";
+
+    const nameLine = userName
+        ? `\n\nThe user's name is ${userName}. Use this to personalize your greeting if this is the first message.`
+        : "";
+
+    const greetingLine = isGreeting
+        ? `\n\nThis is the FIRST greeting message. Start with a warm, personalized greeting using their name.`
+        : "";
+
+    const systemContent = `${CHAT_SYSTEM}\n\nDetected intent for the LATEST user message: ${intent}. Current topic: ${topic || "not classified"}.\nThe user's detected emotion context is: ${emotion}. It is context, not the instruction for this reply.${contextLine}${nameLine}${greetingLine}`;
+
+    const lastMessage = messages[messages.length - 1];
+    const historyMessages = messages.slice(0, -1).slice(-10);
+
+    const history = historyMessages.map((m) => ({
+        role: m.role === "ai" ? "model" : "user",
+        parts: [{ text: m.content }],
+    }));
+
+    const genAI = getGenAI();
+    const model = genAI.getGenerativeModel({
+        model: MODEL,
+        systemInstruction: systemContent
+    });
+
+    const chatSession = model.startChat({ history });
+    
+    yield { provider: "gemini", intent, topic, text: "" };
+
+    const result = await chatSession.sendMessageStream(lastMessage.content);
+    for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        if (chunkText) {
+            yield { text: chunkText };
+        }
+    }
+}
+
+module.exports = { detect, chat, chatStream };

@@ -22,43 +22,104 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const [initError, setInitError] = useState(false);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const emotion = initialEmotion || "Neutral";
   const name = userName || "friend";
 
   // ---- Kick off the conversation with a personalized greeting ----
   const openConversation = useCallback(async () => {
+    if (isStreaming) return;
     setIsTyping(true);
+    setIsStreaming(true);
     setInitError(false);
+    
+    abortControllerRef.current = new AbortController();
+    
     try {
-      const res = await api.post("/api/chat", {
-        messages: [
-          {
-            role: "user",
-            content: originalText || "Hi, I'd like to talk about how I'm feeling.",
-          },
-        ],
-        emotion,
-        userName: name,
-        isGreeting: true,
+      const response = await fetch(`${api.defaults.baseURL}/api/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: originalText || "Hi, I'd like to talk about how I'm feeling.",
+            },
+          ],
+          emotion,
+          originalText,
+          userName: name,
+          isGreeting: true,
+        }),
+        signal: abortControllerRef.current.signal,
       });
 
-      setMessages([
-        { role: "user", content: originalText },
-        { role: "ai", content: res.data.reply },
-      ]);
-    } catch {
-      setInitError(true);
-      toast.error("The companion couldn't start the conversation.");
+      if (!response.ok) {
+        throw new Error("Stream request failed");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      setMessages([{ role: "user", content: originalText }]);
+      
+      let aiMessage = { role: "ai", content: "" };
+      setMessages((prev) => [...prev, aiMessage]);
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        // Normalize line endings and split
+        const lines = buffer.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+        
+        // Keep the last line if it's incomplete (might be a partial data line)
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.error) {
+                throw new Error(data.text);
+              }
+              if (data.text) {
+                aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = aiMessage;
+                  return updated;
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setInitError(true);
+        toast.error("The companion couldn't start the conversation.");
+      }
     } finally {
       setIsTyping(false);
+      setIsStreaming(false);
+      abortControllerRef.current = null;
     }
-  }, [emotion, name, originalText]);
+  }, [emotion, name, originalText, isStreaming]);
 
   useEffect(() => {
     const startConversation = setTimeout(openConversation, 0);
@@ -75,26 +136,87 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   // ---- Send a message (from input box or a quick-reply chip) ----
   const send = async (text) => {
     const content = (text ?? input).trim();
-    if (!content || isTyping) return;
+    if (!content || isTyping || isStreaming) return;
 
     const userMsg = { role: "user", content };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setInput("");
     setIsTyping(true);
+    setIsStreaming(true);
+
+    abortControllerRef.current = new AbortController();
 
     try {
-      const res = await api.post("/api/chat", {
-        messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-        emotion,
-        userName: name,
-        isGreeting: false,
+      const response = await fetch(`${api.defaults.baseURL}/api/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          emotion,
+          originalText,
+          userName: name,
+          isGreeting: false,
+        }),
+        signal: abortControllerRef.current.signal,
       });
-      setMessages((prev) => [...prev, { role: "ai", content: res.data.reply }]);
-    } catch {
-      toast.error("The companion couldn't respond right now.");
+
+      if (!response.ok) {
+        throw new Error("Stream request failed");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      let aiMessage = { role: "ai", content: "" };
+      setMessages((prev) => [...prev, aiMessage]);
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        // Normalize line endings and split
+        const lines = buffer.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+        
+        // Keep the last line if it's incomplete (might be a partial data line)
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.error) {
+                throw new Error(data.text);
+              }
+              if (data.text) {
+                aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = aiMessage;
+                  return updated;
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        toast.error("The companion couldn't respond right now.");
+        // Remove the empty AI message on error
+        setMessages((prev) => prev.slice(0, -1));
+      }
     } finally {
       setIsTyping(false);
+      setIsStreaming(false);
+      abortControllerRef.current = null;
       inputRef.current?.focus();
     }
   };
@@ -180,7 +302,7 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
             type="button"
             className="companion-send"
             onClick={() => send()}
-            disabled={isTyping || !input.trim()}
+            disabled={isTyping || isStreaming || !input.trim()}
             aria-label="Send message"
           >
             ➤

@@ -549,13 +549,13 @@ app.put("/api/journal/:id", authMiddleware, async (req, res) => {
             });
         }
 
-        const detectionResult = await aiService.detectEmotion(entry.trim());
+        const trimmedEntry = entry.trim();
         const updatedJournal = await Journal.findByIdAndUpdate(
             req.params.id,
             {
-                entry: entry.trim(),
-                // Re-run detection so the emotion always reflects current text
-                emotion: detectionResult.emotion,
+                entry: trimmedEntry,
+                // Reset emotion; background job will populate it
+                emotion: null,
             },
             {
                 new: true,
@@ -565,6 +565,18 @@ app.put("/api/journal/:id", authMiddleware, async (req, res) => {
         res.json({
             message: "Journal Updated Successfully",
             journal: updatedJournal,
+        });
+
+        // Background emotion detection
+        aiService.detectEmotion(trimmedEntry).then(async (detectionResult) => {
+            const latestJournal = await Journal.findById(updatedJournal._id);
+            // Verify entry hasn't changed since this background task started
+            if (latestJournal && latestJournal.entry === trimmedEntry) {
+                latestJournal.emotion = detectionResult.emotion;
+                await latestJournal.save();
+            }
+        }).catch((err) => {
+            console.error("❌ Background emotion detection failed for updated journal:", err);
         });
 
     } catch (err) {
@@ -800,23 +812,31 @@ app.post("/api/journal", authMiddleware, async (req, res) => {
         }
 
         const trimmedEntry = entry.trim();
-        const detectStarted = Date.now();
-        const detectionResult = await aiService.detectEmotion(trimmedEntry);
-        const detectMs = Date.now() - detectStarted;
-
         const saveStarted = Date.now();
         const journal = new Journal({
             userId,
             entry: trimmedEntry,
-            emotion: detectionResult.emotion,
+            emotion: null,
         });
 
         await journal.save();
-        console.log(`[journal] detect ${detectMs}ms · save ${Date.now() - saveStarted}ms`);
+        console.log(`[journal] save ${Date.now() - saveStarted}ms`);
 
         res.status(201).json({
             message: "Journal Saved Successfully",
             journal,
+        });
+
+        // Background emotion detection
+        aiService.detectEmotion(trimmedEntry).then(async (detectionResult) => {
+            const latestJournal = await Journal.findById(journal._id);
+            // Verify entry hasn't changed since this background task started
+            if (latestJournal && latestJournal.entry === trimmedEntry) {
+                latestJournal.emotion = detectionResult.emotion;
+                await latestJournal.save();
+            }
+        }).catch((err) => {
+            console.error("❌ Background emotion detection failed for new journal:", err);
         });
 
     } catch (err) {
@@ -934,6 +954,69 @@ app.post("/api/chat", authMiddleware, aiRateLimit, async (req, res) => {
 
     }
 
+});
+
+// ================= MOOD COMPANION CHAT STREAM =================
+app.post("/api/chat/stream", authMiddleware, aiRateLimit, async (req, res) => {
+    try {
+        const { messages, emotion, originalText, userName, isGreeting } = req.body;
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ message: "Conversation history is required" });
+        }
+
+        if (messages.length > 20 || messages.some((message) =>
+            !message ||
+            !["user", "ai"].includes(message.role) ||
+            typeof message.content !== "string" ||
+            message.content.trim().length === 0 ||
+            message.content.length > 5000
+        )) {
+            return res.status(400).json({
+                message: "Conversation messages must contain valid text and stay within the supported limits.",
+            });
+        }
+
+        const safeEmotion = typeof emotion === "string" ? emotion : "Neutral";
+        const safeOriginal = typeof originalText === "string" ? originalText.slice(0, 5000) : "";
+        const safeUserName = typeof userName === "string" ? userName : "friend";
+        const safeGreeting = typeof isGreeting === "boolean" ? isGreeting : false;
+
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        res.flushHeaders();
+
+        // Render buffer workaround: Send initial comment to flush proxies
+        res.write(": \n\n");
+
+        let streamFinished = false;
+        req.on("close", () => {
+            streamFinished = true;
+        });
+
+        const stream = aiService.chatStream(messages, safeEmotion, safeOriginal, safeUserName, safeGreeting);
+
+        for await (const chunk of stream) {
+            if (streamFinished) break;
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+
+        res.end();
+    } catch (err) {
+        console.error("❌ /api/chat/stream error:", err.message || err);
+        if (!res.headersSent) {
+            const status = err.status === 429 ? 429 : 500;
+            return res.status(status).json({
+                message: err.status === 429
+                    ? "The AI is receiving too many requests. Please wait a moment and try again."
+                    : "The companion couldn't respond right now. Please try again.",
+            });
+        } else {
+            res.write(`data: ${JSON.stringify({ error: true, text: " [Connection error, please try again]" })}\n\n`);
+            res.end();
+        }
+    }
 });
 
 
