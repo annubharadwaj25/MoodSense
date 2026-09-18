@@ -29,6 +29,7 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const hasInitializedRef = useRef(false);
 
   const emotion = initialEmotion || "Neutral";
   const name = userName || "friend";
@@ -90,21 +91,22 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
         
         for (const line of lines) {
           if (line.startsWith("data: ")) {
+            let data;
             try {
-              const data = JSON.parse(line.slice(6));
-              if (data.error) {
-                throw new Error(data.text);
-              }
-              if (data.text) {
-                aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = aiMessage;
-                  return updated;
-                });
-              }
+              data = JSON.parse(line.slice(6));
             } catch (e) {
-              // Skip invalid JSON
+              continue;
+            }
+            if (data?.error) {
+              throw new Error(data.text || "Stream error");
+            }
+            if (data?.text) {
+              aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = aiMessage;
+                return updated;
+              });
             }
           }
         }
@@ -113,6 +115,7 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
       if (err.name !== "AbortError") {
         setInitError(true);
         toast.error("The companion couldn't start the conversation.");
+        setMessages((prev) => prev.filter((m) => m.role !== "ai" || m.content.trim() !== ""));
       }
     } finally {
       setIsTyping(false);
@@ -122,6 +125,8 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
   }, [emotion, name, originalText, isStreaming]);
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
     const startConversation = setTimeout(openConversation, 0);
     return () => clearTimeout(startConversation);
   }, [openConversation]);
@@ -188,21 +193,22 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
         
         for (const line of lines) {
           if (line.startsWith("data: ")) {
+            let data;
             try {
-              const data = JSON.parse(line.slice(6));
-              if (data.error) {
-                throw new Error(data.text);
-              }
-              if (data.text) {
-                aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = aiMessage;
-                  return updated;
-                });
-              }
+              data = JSON.parse(line.slice(6));
             } catch (e) {
-              // Skip invalid JSON
+              continue;
+            }
+            if (data?.error) {
+              throw new Error(data.text || "Stream error");
+            }
+            if (data?.text) {
+              aiMessage = { ...aiMessage, content: aiMessage.content + data.text };
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = aiMessage;
+                return updated;
+              });
             }
           }
         }
@@ -211,7 +217,7 @@ export default function MoodCompanion({ initialEmotion, originalText, userName }
       if (err.name !== "AbortError") {
         toast.error("The companion couldn't respond right now.");
         // Remove the empty AI message on error
-        setMessages((prev) => prev.slice(0, -1));
+        setMessages((prev) => prev.filter((m) => m.role !== "ai" || m.content.trim() !== ""));
       }
     } finally {
       setIsTyping(false);

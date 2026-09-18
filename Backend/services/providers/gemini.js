@@ -12,7 +12,7 @@
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const MODEL = "gemini-3.5-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 // Emotions the classifier may return.
 const VALID_EMOTIONS = [
@@ -26,6 +26,97 @@ const VALID_EMOTIONS = [
     "Neutral",
     "Stressed",
 ];
+
+const EMOTION_SYNONYMS = {
+    happy: "Happy",
+    happiness: "Happy",
+    joy: "Happy",
+    joyful: "Happy",
+    delight: "Happy",
+    cheerful: "Happy",
+
+    sad: "Sad",
+    sadness: "Sad",
+    unhappy: "Sad",
+    grief: "Sad",
+    sorrow: "Sad",
+    depressed: "Sad",
+    lonely: "Sad",
+
+    angry: "Angry",
+    anger: "Angry",
+    furious: "Angry",
+    mad: "Angry",
+    rage: "Angry",
+    annoyed: "Angry",
+
+    fear: "Fear",
+    fearful: "Fear",
+    scared: "Fear",
+    afraid: "Fear",
+    terrified: "Fear",
+    dread: "Fear",
+
+    anxious: "Anxious",
+    anxiety: "Anxious",
+    worry: "Anxious",
+    worried: "Anxious",
+    nervous: "Anxious",
+    unease: "Anxious",
+    uneasy: "Anxious",
+
+    calm: "Calm",
+    calmness: "Calm",
+    peaceful: "Calm",
+    relaxed: "Calm",
+    serene: "Calm",
+
+    excited: "Excited",
+    excitement: "Excited",
+    thrilled: "Excited",
+    eager: "Excited",
+    enthusiastic: "Excited",
+
+    stressed: "Stressed",
+    stress: "Stressed",
+    overwhelmed: "Stressed",
+    burnout: "Stressed",
+    pressured: "Stressed",
+
+    neutral: "Neutral",
+    indifferent: "Neutral",
+};
+
+function normalizeEmotion(rawEmotion) {
+    if (!rawEmotion || typeof rawEmotion !== "string") return "Neutral";
+    const cleaned = rawEmotion.trim().toLowerCase();
+
+    const directMatch = VALID_EMOTIONS.find((e) => e.toLowerCase() === cleaned);
+    if (directMatch) return directMatch;
+
+    if (EMOTION_SYNONYMS[cleaned]) return EMOTION_SYNONYMS[cleaned];
+
+    for (const key of Object.keys(EMOTION_SYNONYMS)) {
+        if (cleaned.includes(key)) {
+            return EMOTION_SYNONYMS[key];
+        }
+    }
+
+    return "Neutral";
+}
+
+function normalizeConfidence(rawConfidence) {
+    let num = Number(rawConfidence);
+    if (isNaN(num)) return 70;
+
+    if (num > 0 && num <= 1) {
+        num = num * 100;
+    }
+
+    const rounded = Math.round(num);
+    return Math.min(Math.max(rounded, 50), 100);
+}
+
 const { detectIntent, detectTopic, getLastUserMessage } = require("../companionEngine");
 
 // ---------------------------------------------------------------------------
@@ -111,10 +202,9 @@ async function generateContent(prompt, maxTokens = 512) {
 }
 
 async function parseJSONResponse(text) {
-    // Strip markdown code fences if the model wrapped the JSON.
-    let cleaned = text;
-    if (cleaned.startsWith("```")) {
-        cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+    let cleaned = text.trim();
+    if (cleaned.includes("```")) {
+        cleaned = cleaned.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
     }
 
     let parsed;
@@ -141,14 +231,8 @@ async function detect(text) {
     const raw = await generateContent(prompt, 128);
     const parsed = await parseJSONResponse(raw);
 
-    const emotion = VALID_EMOTIONS.includes(parsed.emotion)
-        ? parsed.emotion
-        : "Neutral";
-
-    const confidence = Math.min(
-        Math.max(Math.round(Number(parsed.confidence) || 70), 50),
-        100
-    );
+    const emotion = normalizeEmotion(parsed.emotion);
+    const confidence = normalizeConfidence(parsed.confidence);
 
     return {
         emotion,
